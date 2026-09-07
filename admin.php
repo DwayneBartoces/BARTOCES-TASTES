@@ -353,7 +353,7 @@ if (!in_array($activeTab, $allowedTabs)) {
             font-size: 13px; font-weight: 600; cursor: pointer;
             text-decoration: none; transition: var(--transition);
         }
-        .btn-logout:hover { background: rgba(224,92,92,0.25); color: #fff; }
+        .btn-logout:hover { background: rgba(224,92,92,0.25); }
 
         /* MAIN */
         .main { flex: 1; padding: 28px 36px; overflow-y: auto; max-width: calc(100vw - 250px); }
