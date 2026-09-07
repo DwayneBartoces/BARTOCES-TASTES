@@ -2,13 +2,8 @@
 require_once 'config.php';
 session_start();
 
-// PHP SESSION GUARD — redirect if not logged in
-if (empty($_SESSION['user'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$currentUser = $_SESSION['user'];
+// Allow guest browsing; require login only for ordering
+$currentUser = $_SESSION['user'] ?? null;
 $pageTitle   = 'Bartoces Tastes - Est. 2026 | Authentic Culinary Excellence';
 $appName     = 'BARTOCES TASTES';
 $estYear     = 2026;
@@ -34,12 +29,12 @@ $estYear     = 2026;
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 
     <!-- PHP SESSION USER DATA (injected server-side for JS UI) -->
     <script>
         window.BARTOCES_SESSION = <?php echo json_encode([
-            'loggedIn' => true,
+            'loggedIn' => !empty($currentUser),
             'user'     => $currentUser
         ]); ?>;
     </script>
@@ -48,7 +43,7 @@ $estYear     = 2026;
 <body>
 
     <!-- ADMIN MANAGEMENT TOP BAR (Visible only for Administrator role) -->
-    <?php if ($currentUser['role'] === 'admin'): ?>
+    <?php if (!empty($currentUser) && $currentUser['role'] === 'admin'): ?>
     <div id="adminTopBar" class="admin-top-bar">
         <div class="admin-bar-inner">
             <div class="admin-status">
@@ -85,7 +80,8 @@ $estYear     = 2026;
         </nav>
 
         <div class="header-actions">
-            <!-- USER PROFILE & LOGOUT -->
+            <!-- USER PROFILE & LOGOUT / SIGN IN -->
+            <?php if (!empty($currentUser)): ?>
             <div class="user-profile-badge" id="userProfileBadge">
                 <div class="user-avatar-wrap">
                     <i class="fa-solid fa-user" id="userRoleIcon"></i>
@@ -98,16 +94,22 @@ $estYear     = 2026;
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </a>
             </div>
+            <?php else: ?>
+            <a href="login.php" class="header-signin-btn" id="headerSignInBtn" title="Sign In">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                <span>SIGN IN</span>
+            </a>
+            <?php endif; ?>
 
             <!-- CART BUTTON -->
-            <button class="cart-btn" id="cartBtn" aria-label="View Cart and Checkout">
+            <button class="cart-btn" id="cartBtn" aria-label="View Cart and Checkout" <?php if (empty($currentUser)): ?>onclick="window.location.href='login.php'; return false;"<?php endif; ?>>
                 <i class="fa-solid fa-bag-shopping"></i>
                 <span class="cart-label">CART</span>
                 <span class="cart-badge" id="cartBadge">0</span>
             </button>
 
             <!-- ORDER NOW CTA -->
-            <button class="order-button" id="headerOrderBtn">
+            <button class="order-button" id="headerOrderBtn" <?php if (empty($currentUser)): ?>onclick="window.location.href='login.php'; return false;"<?php endif; ?>>
                 ORDER NOW
             </button>
 
@@ -140,17 +142,16 @@ $estYear     = 2026;
                     <i class="fa-solid fa-book-open"></i> VIEW MENU
                 </button>
 
-                <button class="dark-button btn-order-hero" id="heroOrderBtn">
+                <button class="dark-button btn-order-hero" id="heroOrderBtn" <?php if (empty($currentUser)): ?>onclick="window.location.href='login.php'; return false;"<?php endif; ?>>
                     <i class="fa-solid fa-utensils"></i> ORDER NOW
                 </button>
             </div>
         </div>
 
         <div class="hero-chef-wrapper">
-            <img src="images/chef.png" class="hero-chef" alt="Executive Chef Kenji Tanaka">
             <div class="chef-badge">
                 <span class="chef-badge-star">★ 4.9</span>
-                <span class="chef-badge-name">Chef Kenji • Exec Chef</span>
+                <span class="chef-badge-name">Executive Chef • Bartoces Tastes</span>
             </div>
         </div>
     </section>
@@ -692,12 +693,12 @@ $estYear     = 2026;
                     "Made with Love, Made with Flavor."
                 </small>
                 <div class="social-links">
-                    <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook"><i
-                            class="fa-brands fa-facebook-f"></i></a>
-                    <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram"><i
-                            class="fa-brands fa-instagram"></i></a>
-                    <a href="https://tiktok.com" target="_blank" rel="noreferrer" aria-label="TikTok"><i
-                            class="fa-brands fa-tiktok"></i></a>
+                    <span class="social-badge" aria-label="Facebook"><i
+                            class="fa-brands fa-facebook-f"></i></span>
+                    <span class="social-badge" aria-label="Instagram"><i
+                            class="fa-brands fa-instagram"></i></span>
+                    <span class="social-badge" aria-label="TikTok"><i
+                            class="fa-brands fa-tiktok"></i></span>
                 </div>
             </div>
         </div>
@@ -736,11 +737,11 @@ $estYear     = 2026;
             <h3>CONTACTS</h3>
             <p>
                 <i class="fa-solid fa-phone"></i>
-                <a href="tel:+639123456789" class="contact-link">0912 345 6789</a>
+                <span class="contact-text">0912 345 6789</span>
             </p>
             <p>
                 <i class="fa-solid fa-envelope"></i>
-                <a href="mailto:bartocestastes@email.com" class="contact-link">bartocestastes@email.com</a>
+                <span class="contact-text">bartocestastes@email.com</span>
             </p>
             <p>
                 <i class="fa-solid fa-location-dot"></i>
@@ -1067,7 +1068,7 @@ $estYear     = 2026;
 
 
     <!-- JAVASCRIPT LOGIC -->
-    <script src="script.js"></script>
+    <script src="script.js?v=<?php echo time(); ?>"></script>
 
 </body>
 

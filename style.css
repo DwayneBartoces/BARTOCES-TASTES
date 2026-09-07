@@ -367,6 +367,29 @@ a {
     transform: translateX(2px);
 }
 
+.header-signin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    color: var(--accent-rose);
+    border: 1px solid var(--accent-rose);
+    padding: 7px 16px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.header-signin-btn:hover {
+    background: var(--accent-rose);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(149, 102, 102, 0.25);
+}
+
 /* ==========================================================
    HEADER & NAVIGATION
    ========================================================== */
@@ -563,9 +586,10 @@ a {
     position: absolute;
     inset: 0;
     background: linear-gradient(90deg,
-            rgba(10, 8, 8, 0.92) 0%,
-            rgba(15, 12, 12, 0.75) 45%,
-            rgba(20, 15, 15, 0.3) 100%);
+            rgba(10, 8, 8, 0.88) 0%,
+            rgba(15, 12, 12, 0.55) 40%,
+            rgba(20, 15, 15, 0.15) 75%,
+            rgba(10, 8, 8, 0.25) 100%);
     z-index: 1;
 }
 
@@ -668,29 +692,17 @@ a {
 
 .hero-chef-wrapper {
     position: absolute;
-    right: 40px;
-    bottom: 0;
-    height: 100%;
-    width: 440px;
-    z-index: 2;
+    right: 30px;
+    bottom: 24px;
+    z-index: 3;
     pointer-events: none;
 }
 
 .hero-chef {
-    position: absolute;
-    bottom: 0;
-    right: 15px;
-    height: 98%;
-    object-fit: contain;
-    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.6));
-    mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 85%, rgba(0, 0, 0, 0) 100%);
-    -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 85%, rgba(0, 0, 0, 0) 100%);
+    display: none;
 }
 
 .chef-badge {
-    position: absolute;
-    bottom: 24px;
-    left: 20px;
     background: rgba(18, 14, 14, 0.88);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(207, 161, 53, 0.4);
@@ -1502,7 +1514,8 @@ a {
     gap: 12px;
 }
 
-.social-links a {
+.social-links a,
+.social-links .social-badge {
     width: 30px;
     height: 30px;
     border-radius: var(--radius-full);
@@ -1515,9 +1528,20 @@ a {
     border: 1px solid var(--border-dark);
 }
 
+.social-links .social-badge {
+    cursor: default;
+    pointer-events: none;
+    user-select: none;
+}
+
 .social-links a:hover {
     background: var(--accent-rose);
     color: var(--text-light);
+}
+
+.contact-text {
+    cursor: default;
+    user-select: text;
 }
 
 .footer-column {

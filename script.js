@@ -188,15 +188,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     // 2. STATE MANAGEMENT
     // ==========================================================
+    // Current PHP session user (injected by index.php)
+    const currentUser = (window.BARTOCES_SESSION && window.BARTOCES_SESSION.loggedIn)
+        ? window.BARTOCES_SESSION.user
+        : null;
+
     let cart = [];
-    try {
-        const storedCart = localStorage.getItem('bartoces_cart_2026');
-        if (storedCart) {
-            cart = JSON.parse(storedCart);
+    if (currentUser) {
+        try {
+            const storedCart = localStorage.getItem('bartoces_cart_2026');
+            if (storedCart) {
+                cart = JSON.parse(storedCart);
+            }
+        } catch (e) {
+            console.error("Could not load cart from storage", e);
+            cart = [];
         }
-    } catch (e) {
-        console.error("Could not load cart from storage", e);
-        cart = [];
+    } else {
+        // Clear cart for logged-out visitors
+        try {
+            localStorage.removeItem('bartoces_cart_2026');
+        } catch (e) {}
     }
 
     let currentOrderType = 'dinein'; // 'dinein' | 'takeout' | 'delivery'
@@ -204,11 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Selected dish state for Quick View Modal
     let selectedQuickViewItem = null;
     let quickViewQty = 1;
-
-    // Current PHP session user (injected by index.php)
-    const currentUser = (window.BARTOCES_SESSION && window.BARTOCES_SESSION.loggedIn)
-        ? window.BARTOCES_SESSION.user
-        : null;
 
 
     // ==========================================================
@@ -367,6 +374,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3200);
     }
 
+    // Helper: Require user authentication before ordering or reserving (immediate redirect)
+    function requireLogin() {
+        if (!currentUser) {
+            window.location.href = 'login.php';
+            return false;
+        }
+        return true;
+    }
+
 
     // ==========================================================
     // 5. MODAL & DRAWER OPEN / CLOSE HELPERS
@@ -427,6 +443,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function addItemToCart(dish, options = [], quantity = 1) {
+        if (!requireLogin()) {
+            return false;
+        }
+
         // Check stock availability first
         try {
             const response = await fetch(`api/admin_inventory.php`);
@@ -631,7 +651,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     // 7. CART DRAWER TRIGGERS
     // ==========================================================
-    cartBtn.addEventListener('click', () => {
+    cartBtn.addEventListener('click', (e) => {
+        if (!requireLogin()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         openModal(cartDrawer);
     });
 
@@ -639,11 +664,21 @@ document.addEventListener('DOMContentLoaded', () => {
         closeModal(cartDrawer);
     });
 
-    headerOrderBtn.addEventListener('click', () => {
+    headerOrderBtn.addEventListener('click', (e) => {
+        if (!requireLogin()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         openModal(cartDrawer);
     });
 
-    heroOrderBtn.addEventListener('click', () => {
+    heroOrderBtn.addEventListener('click', (e) => {
+        if (!requireLogin()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         openModal(cartDrawer);
     });
 
@@ -665,11 +700,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const dishId = card ? parseInt(card.getAttribute('data-id'), 10) : null;
         const dish = menuDatabase[dishId];
 
-        if (action === 'add-to-cart' && dish) {
-            addItemToCart(dish);
+        if (action === 'add-to-cart') {
+            if (!requireLogin()) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            if (dish) addItemToCart(dish);
         } else if (action === 'quickview' && dish) {
             openQuickView(dish);
         } else if (action === 'order-featured') {
+            if (!requireLogin()) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
             const featuredDish = menuDatabase[8];
             if (featuredDish) {
                 addItemToCart(featuredDish);
@@ -741,7 +786,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    qvAddToCartBtn.addEventListener('click', () => {
+    qvAddToCartBtn.addEventListener('click', (e) => {
+        if (!requireLogin()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         if (!selectedQuickViewItem) return;
 
         const options = [];
@@ -769,6 +819,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     checkoutForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        if (!requireLogin()) return;
 
         if (cart.length === 0) {
             showToast("Your cart is empty. Please add delicious items first!", "error");
@@ -935,6 +987,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 11. TABLE RESERVATION MODAL & ACTIONS
     // ==========================================================
     function openReservation() {
+        if (!requireLogin()) return;
+
         // Pre-fill today's date + 1 day
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -956,12 +1010,20 @@ document.addEventListener('DOMContentLoaded', () => {
         openReservation();
     });
 
-    serviceTakeOutBtn.addEventListener('click', () => {
+    serviceTakeOutBtn.addEventListener('click', (e) => {
+        if (!requireLogin()) {
+            e.preventDefault();
+            return;
+        }
         setOrderType('takeout');
         openModal(cartDrawer);
     });
 
-    serviceDeliveryBtn.addEventListener('click', () => {
+    serviceDeliveryBtn.addEventListener('click', (e) => {
+        if (!requireLogin()) {
+            e.preventDefault();
+            return;
+        }
         setOrderType('delivery');
         openModal(cartDrawer);
     });

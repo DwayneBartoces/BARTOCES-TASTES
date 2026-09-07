@@ -274,19 +274,6 @@ $estYear   = 2026;
                 </button>
             </form>
 
-            <!-- QUICK DEMO LOGIN -->
-            <div class="demo-accounts-box">
-                <span class="demo-title"><i class="fa-solid fa-bolt"></i> QUICK DEMO LOGIN (1-CLICK)</span>
-                <div class="demo-chips">
-                    <button type="button" class="demo-chip" id="quickUserBtn" title="Autofills user / user123">
-                        <i class="fa-solid fa-user"></i> Demo Customer
-                    </button>
-                    <button type="button" class="demo-chip demo-admin" id="quickAdminBtn" title="Autofills admin / admin123">
-                        <i class="fa-solid fa-crown text-gold"></i> Demo Admin
-                    </button>
-                </div>
-            </div>
-
             <!-- TOGGLE LOGIN / SIGN UP -->
             <div class="auth-toggle-mode">
                 <span id="toggleModeText">Don't have an account yet?</span>
@@ -314,8 +301,6 @@ $estYear   = 2026;
         const submitBtnText   = document.getElementById('submitBtnText');
         const toggleModeText  = document.getElementById('toggleModeText');
         const toggleModeLink  = document.getElementById('toggleModeLink');
-        const quickUserBtn    = document.getElementById('quickUserBtn');
-        const quickAdminBtn   = document.getElementById('quickAdminBtn');
         const toggleLoginPwd  = document.getElementById('toggleLoginPwd');
         const loginPassword   = document.getElementById('loginPassword');
         const loginEyeIcon    = document.getElementById('loginEyeIcon');
@@ -354,7 +339,6 @@ $estYear   = 2026;
                     submitBtnText.textContent = 'ADMIN SIGN IN';
                     // Hide registration toggle for admin
                     document.querySelector('.auth-toggle-mode').style.display = 'none';
-                    document.querySelector('.demo-accounts-box').style.display = 'block';
                     // Switch to sign-in if in sign-up mode
                     if (isSignUpMode) toggleMode();
                 } else {
@@ -362,7 +346,6 @@ $estYear   = 2026;
                     brandSubtitle.textContent = 'Sign in to order your favorite dishes or reserve a table';
                     submitBtnText.textContent = isSignUpMode ? 'CREATE ACCOUNT & DINE' : 'SIGN IN TO DINE';
                     document.querySelector('.auth-toggle-mode').style.display = 'flex';
-                    document.querySelector('.demo-accounts-box').style.display = 'block';
                 }
             });
         });
@@ -406,23 +389,6 @@ $estYear   = 2026;
             });
         }
 
-        // ---- Quick Demo Login ----
-        quickUserBtn.addEventListener('click', () => {
-            // Switch to User tab
-            document.querySelector('[data-role="user"]').click();
-            document.getElementById('loginIdentifier').value = 'user';
-            loginPassword.value = 'user123';
-            signInForm.submit();
-        });
-
-        quickAdminBtn.addEventListener('click', () => {
-            // Switch to Admin tab
-            document.querySelector('[data-role="admin"]').click();
-            document.getElementById('loginIdentifier').value = 'admin';
-            loginPassword.value = 'admin123';
-            roleField.value = 'admin';
-            signInForm.submit();
-        });
     });
     </script>
 
