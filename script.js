@@ -1065,9 +1065,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     // 12. CONTACT US MODAL
     // ==========================================================
-    contactUsBtn.addEventListener('click', () => {
-        openModal(contactModal);
-    });
+    if (contactUsBtn) {
+        contactUsBtn.addEventListener('click', () => {
+            openModal(contactModal);
+        });
+    }
 
     closeContactBtn.addEventListener('click', () => {
         closeModal(contactModal);
