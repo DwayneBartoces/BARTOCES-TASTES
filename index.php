@@ -747,9 +747,9 @@ $estYear     = 2026;
                 <i class="fa-solid fa-location-dot"></i>
                 <span>Main St., Culinary Plaza, 2026</span>
             </p>
-            <button class="footer-contact-btn" id="contactUsBtn">
+            <span class="footer-contact-badge">
                 <i class="fa-regular fa-paper-plane"></i> Send a Message
-            </button>
+            </span>
         </div>
     </footer>
 
