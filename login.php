@@ -42,8 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$user || !password_verify($password, $user['password'])) {
                 $error = 'Invalid username/email or password.';
-            } elseif ($role === 'admin' && $user['role'] !== 'admin') {
-                $error = 'Access Denied: This account does not have Admin privileges.';
             } else {
                 // Create session
                 $_SESSION['user'] = [
@@ -157,16 +155,6 @@ $estYear   = 2026;
                 <img src="images/logo.png" alt="<?php echo $appName; ?> Logo" class="login-logo">
                 <h1 id="brandTitle">WELCOME TO <?php echo $appName; ?></h1>
                 <p id="brandSubtitle">Sign in to order your favorite dishes or reserve a table</p>
-            </div>
-
-            <!-- ROLE SELECTOR TABS -->
-            <div class="role-tabs" id="roleTabs">
-                <button type="button" class="role-tab active" data-role="user" id="tabCustomer">
-                    <i class="fa-solid fa-user"></i> Customer Login
-                </button>
-                <button type="button" class="role-tab admin-tab" data-role="admin" id="tabAdmin">
-                    <i class="fa-solid fa-shield-halved"></i> Admin Portal
-                </button>
             </div>
 
             <!-- SERVER-SIDE ALERT (PHP error/success) -->
@@ -287,17 +275,13 @@ $estYear   = 2026;
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        let activeRole = 'user';
         let isSignUpMode = false;
 
-        const roleTabs        = document.querySelectorAll('.role-tab');
         const signInForm      = document.getElementById('signInForm');
         const signUpForm      = document.getElementById('signUpForm');
         const authAlert       = document.getElementById('authAlert');
         const alertMessage    = document.getElementById('alertMessage');
-        const brandTitle      = document.getElementById('brandTitle');
         const brandSubtitle   = document.getElementById('brandSubtitle');
-        const roleField       = document.getElementById('roleField');
         const submitBtnText   = document.getElementById('submitBtnText');
         const toggleModeText  = document.getElementById('toggleModeText');
         const toggleModeLink  = document.getElementById('toggleModeLink');
@@ -323,32 +307,6 @@ $estYear   = 2026;
         function hideJsAlert() {
             authAlert.style.display = 'none';
         }
-
-        // ---- Role tab switching ----
-        roleTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                activeRole = tab.dataset.role;
-                roleTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                roleField.value = activeRole;
-                hideJsAlert();
-
-                if (activeRole === 'admin') {
-                    brandTitle.textContent   = 'ADMIN PORTAL';
-                    brandSubtitle.textContent = 'Sign in with your Admin credentials to manage orders & reservations';
-                    submitBtnText.textContent = 'ADMIN SIGN IN';
-                    // Hide registration toggle for admin
-                    document.querySelector('.auth-toggle-mode').style.display = 'none';
-                    // Switch to sign-in if in sign-up mode
-                    if (isSignUpMode) toggleMode();
-                } else {
-                    brandTitle.textContent   = 'WELCOME TO BARTOCES TASTES';
-                    brandSubtitle.textContent = 'Sign in to order your favorite dishes or reserve a table';
-                    submitBtnText.textContent = isSignUpMode ? 'CREATE ACCOUNT & DINE' : 'SIGN IN TO DINE';
-                    document.querySelector('.auth-toggle-mode').style.display = 'flex';
-                }
-            });
-        });
 
         // ---- Sign In / Sign Up Toggle ----
         function toggleMode() {
