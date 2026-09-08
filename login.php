@@ -192,7 +192,10 @@ $estYear   = 2026;
                 </div>
 
                 <div class="form-group">
-                    <label for="loginPassword">Password</label>
+                    <div class="form-label-row">
+                        <label for="loginPassword">Password</label>
+                        <span class="forgot-pwd-text">Forgot Password?</span>
+                    </div>
                     <div class="input-with-icon">
                         <i class="fa-regular fa-lock field-icon"></i>
                         <input type="password" id="loginPassword" name="password"
