@@ -7,9 +7,428 @@ require_once __DIR__ . '/config.php';
 
 session_start();
 
-// Guard: Only authenticated administrators can enter
+$adminAuthError = '';
+
+// 1. Handle Admin Authentication POST (submitted directly on admin.php)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_action']) && $_POST['admin_action'] === 'login') {
+    $identifier = sanitize($_POST['identifier'] ?? '');
+    $password   = $_POST['password'] ?? '';
+
+    if (empty($identifier) || empty($password)) {
+        $adminAuthError = 'Please enter both your Admin username/email and password.';
+    } else {
+        $pdoAuth = db();
+        // Prepared statement with named placeholders (Week 7 PDO standards)
+        $authSql = 'SELECT * FROM `users` WHERE (`username` = :identifier OR `email` = :identifier) LIMIT 1';
+        $authStmt = $pdoAuth->prepare($authSql);
+        $authStmt->bindValue(':identifier', $identifier);
+        $authStmt->execute();
+        $authAccount = $authStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$authAccount || !password_verify($password, $authAccount['password'])) {
+            $adminAuthError = 'Invalid Administrator username/email or password.';
+        } elseif ($authAccount['role'] !== 'admin') {
+            $adminAuthError = 'Access Denied: Account "' . htmlspecialchars($authAccount['username']) . '" does not have Administrator privileges.';
+        } else {
+            // Authorized! Store session
+            $_SESSION['user'] = [
+                'id'       => (int)$authAccount['id'],
+                'name'     => $authAccount['name'],
+                'username' => $authAccount['username'],
+                'email'    => $authAccount['email'],
+                'phone'    => $authAccount['phone'] ?? '',
+                'role'     => $authAccount['role'],
+            ];
+            redirect('admin.php');
+        }
+    }
+}
+
+// 2. Guard: If not logged in as an administrator, display the dedicated Admin Portal Sign In screen
 if (empty($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
-    redirect('login.php');
+    $loggedUser = $_SESSION['user'] ?? null;
+    ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal Sign In — Bartoces Tastes</title>
+    <meta name="description" content="Restricted Administrator login portal for Bartoces Tastes management and staff.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        :root {
+            --bg-deep: #0c0b0a;
+            --surface-card: #181715;
+            --surface-input: #23201d;
+            --surface-hover: #2a2724;
+            --gold-primary: #c9a84c;
+            --gold-light: #e8c86b;
+            --gold-dim: rgba(201, 168, 76, 0.12);
+            --gold-border: rgba(201, 168, 76, 0.32);
+            --gold-glow: rgba(201, 168, 76, 0.22);
+            --text-main: #f5f0e8;
+            --text-muted: #9c9488;
+            --error-bg: rgba(224, 92, 92, 0.12);
+            --error-border: rgba(224, 92, 92, 0.4);
+            --error-text: #ff8585;
+            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-serif: 'Playfair Display', Georgia, serif;
+            --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        .admin-bg-ambient {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background:
+                radial-gradient(circle at 50% 12%, rgba(201, 168, 76, 0.09) 0%, transparent 60%),
+                radial-gradient(circle at 15% 85%, rgba(139, 98, 0, 0.07) 0%, transparent 50%),
+                radial-gradient(circle at 85% 85%, rgba(201, 168, 76, 0.05) 0%, transparent 50%);
+        }
+        .admin-bg-pattern {
+            position: fixed;
+            inset: 0;
+            opacity: 0.035;
+            background-image: radial-gradient(#c9a84c 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .admin-login-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 440px;
+            margin: 0 auto;
+            animation: fadeInCard 0.4s ease-out;
+        }
+        @keyframes fadeInCard {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .admin-login-card {
+            background: var(--surface-card);
+            border: 1px solid var(--gold-border);
+            border-radius: 16px;
+            padding: 38px 32px 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 35px rgba(201, 168, 76, 0.06);
+            backdrop-filter: blur(12px);
+            position: relative;
+        }
+        .admin-login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 12%;
+            right: 12%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold-primary), transparent);
+        }
+        .brand-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .admin-security-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 4px 14px;
+            background: var(--gold-dim);
+            border: 1px solid var(--gold-border);
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            color: var(--gold-primary);
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        .brand-logo-img {
+            width: 140px;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto 12px;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+        }
+        .brand-header h1 {
+            font-family: var(--font-serif);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: var(--gold-primary);
+            margin-bottom: 6px;
+        }
+        .brand-header p {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+        /* Alert Notice */
+        .alert-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .alert-error {
+            background: var(--error-bg);
+            border: 1px solid var(--error-border);
+            color: var(--error-text);
+        }
+        .alert-info {
+            background: rgba(91, 155, 213, 0.12);
+            border: 1px solid rgba(91, 155, 213, 0.35);
+            color: #a8d1f7;
+        }
+        /* Form elements */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            margin-bottom: 8px;
+        }
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            color: var(--gold-primary);
+            font-size: 14px;
+            pointer-events: none;
+            transition: var(--transition);
+        }
+        .input-field {
+            width: 100%;
+            background: var(--surface-input);
+            border: 1px solid var(--gold-border);
+            border-radius: 10px;
+            padding: 12px 14px 12px 42px;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 13.5px;
+            transition: var(--transition);
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--gold-light);
+            background: var(--surface-hover);
+            box-shadow: 0 0 0 3px var(--gold-glow);
+        }
+        .input-field::placeholder {
+            color: #635d54;
+        }
+        .btn-pwd-toggle {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 6px;
+            font-size: 14px;
+            transition: var(--transition);
+            border-radius: 4px;
+        }
+        .btn-pwd-toggle:hover {
+            color: var(--gold-light);
+        }
+        /* Submit Button */
+        .btn-admin-submit {
+            width: 100%;
+            padding: 13px 18px;
+            background: linear-gradient(135deg, var(--gold-primary), #9e792a);
+            color: #0c0b0a;
+            border: none;
+            border-radius: 10px;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 24px;
+            transition: var(--transition);
+            box-shadow: 0 4px 16px rgba(201, 168, 76, 0.25);
+        }
+        .btn-admin-submit:hover {
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-primary));
+            box-shadow: 0 6px 22px rgba(201, 168, 76, 0.4);
+            transform: translateY(-1px);
+        }
+        .btn-admin-submit:active {
+            transform: translateY(1px);
+        }
+        /* Card Links & Footer */
+        .admin-card-footer {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+        }
+        .back-site-link {
+            color: var(--gold-primary);
+            font-size: 12.5px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+        .back-site-link:hover {
+            color: var(--gold-light);
+            text-decoration: underline;
+        }
+        .admin-portal-note {
+            font-size: 11px;
+            color: #635d54;
+            letter-spacing: 0.4px;
+        }
+        .admin-portal-note strong {
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-bg-ambient"></div>
+    <div class="admin-bg-pattern"></div>
+
+    <div class="admin-login-wrapper">
+        <div class="admin-login-card">
+            
+            <div class="brand-header">
+                <div class="admin-security-pill">
+                    <i class="fa-solid fa-shield-halved"></i> Administrator Access
+                </div>
+                <img src="images/logo.png" alt="Bartoces Tastes Logo" class="brand-logo-img">
+                <h1>BARTOCES TASTES</h1>
+                <p>Sign in with your administrative account to access restaurant management tools.</p>
+            </div>
+
+            <?php if (!empty($adminAuthError)): ?>
+            <div class="alert-banner alert-error" role="alert">
+                <i class="fa-solid fa-circle-exclamation" style="margin-top:2px;"></i>
+                <span><?php echo htmlspecialchars($adminAuthError); ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($loggedUser) && $loggedUser['role'] !== 'admin'): ?>
+            <div class="alert-banner alert-info" role="status">
+                <i class="fa-solid fa-circle-info" style="margin-top:2px;"></i>
+                <span>Currently signed in as customer (<strong><?php echo htmlspecialchars($loggedUser['name']); ?></strong>). Authenticate below with an Admin account to enter.</span>
+            </div>
+            <?php endif; ?>
+
+            <form method="POST" action="admin.php" id="adminLoginForm">
+                <input type="hidden" name="admin_action" value="login">
+
+                <div class="form-group">
+                    <label for="adminIdentifier">Admin Username or Email</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user-shield input-icon"></i>
+                        <input type="text" id="adminIdentifier" name="identifier" class="input-field" 
+                               value="<?php echo htmlspecialchars($_POST['identifier'] ?? ''); ?>"
+                               placeholder="e.g. admin or admin@bartoces.com" required autocomplete="username" autofocus>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="adminPassword">Admin Password</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" id="adminPassword" name="password" class="input-field" 
+                               placeholder="Enter admin password" required autocomplete="current-password">
+                        <button type="button" class="btn-pwd-toggle" id="toggleAdminPassword" aria-label="Toggle password visibility">
+                            <i class="fa-regular fa-eye" id="adminEyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-admin-submit" id="btnAdminSignIn">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    <span>Sign In to Admin Portal</span>
+                </button>
+            </form>
+
+            <div class="admin-card-footer">
+                <a href="index.php" class="back-site-link">
+                    <i class="fa-solid fa-arrow-left"></i> Return to Main Website
+                </a>
+                <p class="admin-portal-note">
+                    © 2026 Bartoces Tastes • <strong>Restricted Management Portal</strong>
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleBtn = document.getElementById('toggleAdminPassword');
+        const pwdInput  = document.getElementById('adminPassword');
+        const eyeIcon   = document.getElementById('adminEyeIcon');
+
+        if (toggleBtn && pwdInput && eyeIcon) {
+            toggleBtn.addEventListener('click', () => {
+                const isText = pwdInput.type === 'text';
+                pwdInput.type = isText ? 'password' : 'text';
+                eyeIcon.className = isText ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
+            });
+        }
+    });
+    </script>
+</body>
+</html>
+    <?php
+    exit;
 }
 
 $admin = $_SESSION['user'];
@@ -619,7 +1038,7 @@ if (!in_array($activeTab, $allowedTabs)) {
                     <small>Administrator</small>
                 </div>
             </div>
-            <a href="logout.php" class="btn-logout">
+            <a href="logout.php?redirect=admin" class="btn-logout">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
             </a>
         </div>
