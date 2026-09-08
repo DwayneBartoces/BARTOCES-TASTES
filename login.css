@@ -362,6 +362,24 @@ body {
     color: #16a34a;
 }
 
+/* Form Label with Static Non-pressable Forgot Password */
+.form-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.forgot-pwd-text {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent-rose);
+    opacity: 0.85;
+    cursor: default;
+    user-select: none;
+    pointer-events: none;
+}
+
 @media (max-width: 480px) {
     .login-card {
         padding: 26px 20px 22px;
