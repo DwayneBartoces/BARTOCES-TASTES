@@ -1,17 +1,15 @@
 <?php
-// ============================================================
-// BARTOCES TASTES - LOGOUT
-// Destroys the PHP session and redirects to index.php or admin.php
-// ============================================================
+// This file handles user logout
+// It destroys the session and redirects the user back to the homepage or admin page
 session_start();
 
+// Check if the user came from the admin page
 $redirectParam = $_GET['redirect'] ?? '';
+
+// Clear all session data
 session_unset();
 session_destroy();
 
-if ($redirectParam === 'admin' || $redirectParam === 'admin.php') {
-    header('Location: admin.php');
-} else {
-    header('Location: index.php');
-}
+// Redirect to homepage
+header('Location: index.php');
 exit;
