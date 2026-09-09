@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once 'includes/config.php';
 session_start();
 
 // Allow guest browsing; require login only for ordering
@@ -29,7 +29,7 @@ $estYear     = 2026;
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="css/style.css?v=<?php echo time(); ?>">
 
     <!-- PHP SESSION USER DATA (injected server-side for JS UI) -->
     <script>
@@ -827,8 +827,8 @@ $estYear     = 2026;
                 <div class="form-group">
                     <input type="text" id="custName" placeholder="Your Full Name *" required>
                 </div>
-                <div class="form-group">
-                    <input type="tel" id="custPhone" placeholder="Mobile Number (09XXXXXXXXX) *" required>
+                <div class="form-group" id="phoneGroup" style="display: none;">
+                    <input type="tel" id="custPhone" placeholder="Mobile Number (09XXXXXXXXX) *">
                 </div>
                 <div class="form-group" id="deliveryAddressGroup" style="display: none;">
                     <textarea id="custAddress" placeholder="Delivery Street Address & Landmarks *" rows="2"></textarea>
@@ -886,9 +886,6 @@ $estYear     = 2026;
             </div>
 
             <div class="receipt-footer">
-                <button class="btn-print-receipt" id="btnPrintReceipt">
-                    <i class="fa-solid fa-print"></i> Print Receipt
-                </button>
                 <button class="btn-done-order" id="btnDoneOrder">
                     Order Again / Done
                 </button>
@@ -1068,7 +1065,7 @@ $estYear     = 2026;
 
 
     <!-- JAVASCRIPT LOGIC -->
-    <script src="script.js?v=<?php echo time(); ?>"></script>
+    <script src="js/script.js?v=<?php echo time(); ?>"></script>
 
 </body>
 
