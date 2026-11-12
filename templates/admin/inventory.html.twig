@@ -1,0 +1,386 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dish Stocks & Inventory - Bartoces Tastes (Symfony 6.4){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-boxes-stacked"></i> Dish Stocks &amp; Inventory</h1>
+        <p>Real-time kitchen inventory controls. Use <strong>+</strong> and <strong>-</strong> buttons for instantaneous stock adjustment.</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <button type="button" class="btn-primary" onclick="openAddDishModal()">
+            <i class="fa-solid fa-plus"></i> Add New Dish
+        </button>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <h2><i class="fa-solid fa-utensils" style="color:var(--gold); margin-right:8px;"></i> Menu Items Inventory Matrix</h2>
+        <span style="font-size:12px; color:var(--muted);">Click <strong>+</strong> / <strong>-</strong> to adjust quantities instantly via AJAX</span>
+    </div>
+
+    
+    <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div style="position:relative; flex:1; min-width:200px;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:13px;"></i>
+            <input type="text" id="inventorySearch" placeholder="Search dish name, badge, description…"
+                   class="admin-input" style="width:100%; padding-left:34px;"
+                   oninput="filterInventoryTable()">
+        </div>
+        <select id="inventoryCategory" class="admin-select" onchange="filterInventoryTable()">
+            <option value="">All Categories</option>
+            <option value="classics">Filipino Classics</option>
+            <option value="fastfood">Snacks &amp; Sides</option>
+            <option value="pasta">Pizza &amp; Pasta</option>
+        </select>
+        <select id="inventoryStatus" class="admin-select" onchange="filterInventoryTable()">
+            <option value="">All Stock Levels</option>
+            <option value="instock">In Stock</option>
+            <option value="lowstock">Low Stock</option>
+            <option value="outofstock">Out of Stock</option>
+        </select>
+        <button type="button" class="btn-secondary btn-sm" onclick="clearInventoryFilters()">
+            <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+        <span id="inventoryCount" style="font-size:12px; color:var(--muted); margin-left:4px;"></span>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Dish Details</th>
+                <th>Created By</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock Quantity (Instant Steppers)</th>
+                <th>Threshold</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in inventory %}
+            {% set isLow = item.stock <= item.low_stock_threshold and item.stock > 0 %}
+            {% set isOut = item.stock <= 0 %}
+            {% set stockStatus = isOut ? 'outofstock' : (isLow ? 'lowstock' : 'instock') %}
+            <tr data-item-id="{{ item.id }}"
+                data-name="{{ item.name|lower }}"
+                data-badge="{{ item.badge|default('')|lower }}"
+                data-desc="{{ item.description|default('')|lower }}"
+                data-category="{{ item.category|lower }}"
+                data-stock-status="{{ stockStatus }}">
+                <td><small style="color:var(--muted);">#{{ item.id }}</small></td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        {% set rawImg = item.image is defined and item.image ? item.image : 'images/burger.jpg' %}
+                        {% set img = rawImg starts with 'images/' ? '../../' ~ rawImg : rawImg %}
+                        <img src="{{ img }}" alt="{{ item.name }}" style="width:40px; height:40px; border-radius:8px; object-fit:cover; border:1px solid var(--border);" onerror="if(!this.dataset.t1){this.dataset.t1=1; this.src='/{{ rawImg }}';}else if(!this.dataset.t2){this.dataset.t2=1; this.src='{{ rawImg }}';}else{this.src='../../images/burger.jpg';}">
+                        <div>
+                            <strong style="color:var(--text); font-size:14px;">{{ item.name }}</strong>
+                            {% if item.badge is defined and item.badge %}
+                            <span style="display:block; font-size:10px; color:var(--gold); font-weight:600;">{{ item.badge }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    {% if item.creator_role == 'staff' %}
+                        <span class="badge" style="background:rgba(91,155,213,0.18); border:1px solid rgba(91,155,213,0.4); color:var(--blue); font-size:11px;">
+                            <i class="fa-solid fa-kitchen-set"></i> {{ item.creator_name|default('Staff') }}
+                        </span>
+                    {% else %}
+                        <span class="badge" style="background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.35); color:var(--gold-light); font-size:11px;">
+                            <i class="fa-solid fa-shield-halved"></i> {{ item.creator_name|default('Administrator') }}
+                        </span>
+                    {% endif %}
+                </td>
+                <td><span class="badge" style="background:var(--surface2); color:var(--muted); text-transform:capitalize;">{{ item.category }}</span></td>
+                <td><strong style="color:var(--gold);">₱{{ item.price|number_format(2) }}</strong></td>
+                <td>
+                    
+                    <div class="stock-stepper">
+                        <button type="button" class="btn-stock-step btn-stock-minus"
+                            data-id="{{ item.id }}"
+                            data-url="{{ path('admin_inventory_adjust', {id: item.id}) }}"
+                            title="Decrease Stock (-1)">
+                            <i class="fa-solid fa-minus"></i>
+                        </button>
+                        <span class="stock-qty-val" id="stock-val-{{ item.id }}" style="color: {% if isOut or isLow %}var(--red){% else %}var(--gold){% endif %};">
+                            {{ item.stock }}
+                        </span>
+                        <button type="button" class="btn-stock-step btn-stock-plus"
+                            data-id="{{ item.id }}"
+                            data-url="{{ path('admin_inventory_adjust', {id: item.id}) }}"
+                            title="Increase Stock (+1)">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </td>
+                <td><span style="font-size:12.5px; color:var(--muted);">{{ item.low_stock_threshold }} units</span></td>
+                <td>
+                    {% if isOut %}
+                    <span class="badge badge-outofstock" id="badge-{{ item.id }}">Out of Stock</span>
+                    {% elseif isLow %}
+                    <span class="badge badge-lowstock" id="badge-{{ item.id }}">Low Stock</span>
+                    {% else %}
+                    <span class="badge badge-instock" id="badge-{{ item.id }}">In Stock</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" class="btn-secondary btn-sm"
+                            onclick="openEditDishModal({{ item.id }}, '{{ item.name|e('js') }}', {{ item.price }}, '{{ item.category|e('js') }}', {{ item.stock }}, {{ item.low_stock_threshold }}, '{{ item.badge|default('')|e('js') }}', '{{ item.description|default('')|e('js') }}')">
+                            <i class="fa-solid fa-pen"></i> Edit
+                        </button>
+                        <form method="POST" action="{{ path('admin_inventory_delete', {id: item.id}) }}" onsubmit="return confirm('Are you sure you want to remove {{ item.name }}?');" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-danger btn-sm" title="Delete Dish">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="addDishModal" class="admin-modal-backdrop">
+    <div class="admin-modal-card">
+        <h3 style="font-family:'Playfair Display',serif; color:var(--gold); margin-bottom:16px;">
+            <i class="fa-solid fa-utensils"></i> Add New Menu Item
+        </h3>
+        <form method="POST" action="{{ path('admin_inventory_add') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Dish Name *</label>
+                    <input type="text" name="name" class="admin-input" style="width:100%;" required placeholder="e.g. Crispy Pata">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Price (₱) *</label>
+                    <input type="number" step="0.01" name="price" class="admin-input" style="width:100%;" required placeholder="299.00">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Category</label>
+                    <select name="category" class="admin-select" style="width:100%;">
+                        <option value="classics">Filipino Classics</option>
+                        <option value="fastfood">Snacks & Sides</option>
+                        <option value="pasta">Pizza & Pasta</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Badge (Optional)</label>
+                    <input type="text" name="badge" class="admin-input" style="width:100%;" placeholder="e.g. Chef Choice">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Initial Stock</label>
+                    <input type="number" name="stock" class="admin-input" style="width:100%;" value="50">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Low Stock Alert Threshold</label>
+                    <input type="number" name="threshold" class="admin-input" style="width:100%;" value="5">
+                </div>
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Description</label>
+                <textarea name="description" class="admin-input" style="width:100%; height:60px;" placeholder="Ingredients and tasting notes..."></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="btn-secondary" onclick="closeAddDishModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Add Dish</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="editDishModal" class="admin-modal-backdrop">
+    <div class="admin-modal-card">
+        <h3 style="font-family:'Playfair Display',serif; color:var(--gold); margin-bottom:16px;">
+            <i class="fa-solid fa-pen"></i> Edit Menu Item
+        </h3>
+        <form id="editDishForm" method="POST" action="">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Dish Name *</label>
+                    <input type="text" id="editDishName" name="name" class="admin-input" style="width:100%;" required>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Price (₱) *</label>
+                    <input type="number" step="0.01" id="editDishPrice" name="price" class="admin-input" style="width:100%;" required>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Category</label>
+                    <select id="editDishCategory" name="category" class="admin-select" style="width:100%;">
+                        <option value="classics">Filipino Classics</option>
+                        <option value="fastfood">Snacks & Sides</option>
+                        <option value="pasta">Pizza & Pasta</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Badge</label>
+                    <input type="text" id="editDishBadge" name="badge" class="admin-input" style="width:100%;">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Stock Units</label>
+                    <input type="number" id="editDishStock" name="stock" class="admin-input" style="width:100%;">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Low Stock Threshold</label>
+                    <input type="number" id="editDishThreshold" name="threshold" class="admin-input" style="width:100%;">
+                </div>
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Description</label>
+                <textarea id="editDishDesc" name="description" class="admin-input" style="width:100%; height:60px;"></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="btn-secondary" onclick="closeEditDishModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+<script>
+function openAddDishModal() {
+    document.getElementById('addDishModal').classList.add('active');
+}
+function closeAddDishModal() {
+    document.getElementById('addDishModal').classList.remove('active');
+}
+
+function openEditDishModal(id, name, price, category, stock, threshold, badge, desc) {
+    document.getElementById('editDishForm').action = "{{ path('admin_inventory') }}/edit/" + id;
+    document.getElementById('editDishName').value = name;
+    document.getElementById('editDishPrice').value = price;
+    document.getElementById('editDishCategory').value = category;
+    document.getElementById('editDishStock').value = stock;
+    document.getElementById('editDishThreshold').value = threshold;
+    document.getElementById('editDishBadge').value = badge;
+    document.getElementById('editDishDesc').value = desc;
+    document.getElementById('editDishModal').classList.add('active');
+}
+function closeEditDishModal() {
+    document.getElementById('editDishModal').classList.remove('active');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    filterInventoryTable(); // init count on load
+    document.querySelectorAll('.btn-stock-step').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = btn.getAttribute('data-id');
+            const isPlus = btn.classList.contains('btn-stock-plus');
+            const delta = isPlus ? 1 : -1;
+            const valEl = document.getElementById(`stock-val-${id}`);
+            const badgeEl = document.getElementById(`badge-${id}`);
+
+            if (!valEl) return;
+
+            let current = parseInt(valEl.textContent.trim(), 10) || 0;
+            if (!isPlus && current <= 0) {
+                showToast("Item is already out of stock.", true);
+                return;
+            }
+
+            // Optimistic update
+            const nextVal = Math.max(0, current + delta);
+            valEl.textContent = nextVal;
+
+            try {
+                const adjustUrl = btn.getAttribute('data-url');
+                const response = await fetch(adjustUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ delta: delta })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    valEl.textContent = data.stock;
+                    const isLow = data.stock <= data.threshold && data.stock > 0;
+                    const isOut = data.stock <= 0;
+
+                    valEl.style.color = (isLow || isOut) ? 'var(--red)' : 'var(--gold)';
+
+                    if (badgeEl) {
+                        if (isOut) {
+                            badgeEl.className = 'badge badge-outofstock';
+                            badgeEl.textContent = 'Out of Stock';
+                        } else if (isLow) {
+                            badgeEl.className = 'badge badge-lowstock';
+                            badgeEl.textContent = 'Low Stock';
+                        } else {
+                            badgeEl.className = 'badge badge-instock';
+                            badgeEl.textContent = 'In Stock';
+                        }
+                    }
+                    showToast(data.message || `Stock updated to ${data.stock} units!`);
+                } else {
+                    valEl.textContent = current;
+                    showToast(data.message || 'Could not update stock.', true);
+                }
+            } catch (err) {
+                valEl.textContent = current;
+                showToast('Network error while updating stock.', true);
+            }
+        });
+    });
+});
+
+// ===== INVENTORY SEARCH & FILTER (Rubric: Section 4 - Search & filter records) =====
+function filterInventoryTable() {
+    const q        = (document.getElementById('inventorySearch').value || '').toLowerCase();
+    const cat      = (document.getElementById('inventoryCategory').value || '').toLowerCase();
+    const stock    = (document.getElementById('inventoryStatus').value || '').toLowerCase();
+    const rows     = document.querySelectorAll('table.data-table tbody tr');
+    let visible    = 0;
+    rows.forEach(row => {
+        const name     = (row.dataset.name    || '').toLowerCase();
+        const badge    = (row.dataset.badge   || '').toLowerCase();
+        const desc     = (row.dataset.desc    || '').toLowerCase();
+        const rowCat   = (row.dataset.category    || '').toLowerCase();
+        const rowStock = (row.dataset.stockStatus || '').toLowerCase();
+        const matchQ    = !q    || name.includes(q) || badge.includes(q) || desc.includes(q);
+        const matchCat  = !cat  || rowCat === cat;
+        const matchStock= !stock|| rowStock === stock;
+        const show = matchQ && matchCat && matchStock;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    const countEl = document.getElementById('inventoryCount');
+    if (countEl) countEl.textContent = visible + ' item' + (visible !== 1 ? 's' : '') + ' shown';
+}
+function clearInventoryFilters() {
+    document.getElementById('inventorySearch').value = '';
+    document.getElementById('inventoryCategory').value = '';
+    document.getElementById('inventoryStatus').value = '';
+    filterInventoryTable();
+}
+</script>
+{% endblock %}

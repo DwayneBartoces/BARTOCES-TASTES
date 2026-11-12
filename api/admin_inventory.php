@@ -1,21 +1,20 @@
 <?php
-require_once __DIR__ . '/../config.php';
-header('Content-Type: application/json; charset=utf-8');
+// ==============================================================================
+// BARTOCES TASTES - SYMFONY API: ADMIN INVENTORY
+// ==============================================================================
+// Returns live menu items inventory list with stock counts.
+// Connected to Docker MySQL container (webdev_b_mysql on Port 3307).
+// ==============================================================================
 
-try {
-    $pdo = db();
-    $sql = 'SELECT id, name, price, category, image, badge, stock, low_stock_threshold, is_active FROM `menu_items` ORDER BY category, name';
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute();
-    $inventory = $stmt->fetchAll(PDO::FETCH_ASSOC);
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../src/Service/DatabaseService.php';
 
-    echo json_encode([
-        'success' => true,
-        'data' => $inventory
-    ]);
-} catch (PDOException $e) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Failed to fetch inventory: ' . $e->getMessage()
-    ]);
-}
+use App\Service\DatabaseService;
+
+$db = new DatabaseService();
+$items = $db->getInventory();
+
+json_response([
+    'success' => true,
+    'data'    => $items,
+]);

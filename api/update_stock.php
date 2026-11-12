@@ -1,57 +1,55 @@
 <?php
-// ============================================================
-// API: update_stock.php
-// Updates stock and threshold for menu items using PDO
-// Strictly adheres to Week 7: PHP Forms, Validation & Database CRUD
-// ============================================================
-require_once __DIR__ . '/../config.php';
+// ==============================================================================
+// BARTOCES TASTES - SYMFONY API: UPDATE STOCK
+// ==============================================================================
+// Updates inventory count and low-stock alert thresholds.
+// Connected to Docker MySQL container (webdev_b_mysql on Port 3307).
+// ==============================================================================
 
-session_start();
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../src/Service/DatabaseService.php';
+
+use App\Service\DatabaseService;
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 header('Content-Type: application/json; charset=utf-8');
 
-// Admin only
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    json_response(['success' => false, 'message' => 'Method not allowed.'], 405);
+}
+
 if (empty($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
     json_response(['success' => false, 'message' => 'Access denied. Admins only.'], 403);
 }
 
-// Get raw POST data
 $body = file_get_contents('php://input');
 $data = json_decode($body, true);
 
-if (!$data || !isset($data['id']) || !isset($data['stock'])) {
-    json_response(['success' => false, 'message' => 'Invalid data: id and stock are required.'], 400);
+if (!$data) {
+    json_response(['success' => false, 'message' => 'Invalid JSON payload.'], 400);
 }
 
-$id                 = intval($data['id']);
-$stock              = intval($data['stock']);
-$lowStockThreshold  = isset($data['low_stock_threshold']) ? intval($data['low_stock_threshold']) : 5;
+$id        = intval($data['id']                  ?? 0);
+$stock     = max(0, intval($data['stock']        ?? 0));
+$threshold = max(0, intval($data['threshold']    ?? 5));
 
-if ($stock < 0) {
-    json_response(['success' => false, 'message' => 'Stock cannot be negative.'], 400);
+if ($id <= 0) {
+    json_response(['success' => false, 'message' => 'Invalid menu item ID.'], 400);
 }
 
-if ($lowStockThreshold < 0) {
-    json_response(['success' => false, 'message' => 'Low stock threshold cannot be negative.'], 400);
-}
+$db = new DatabaseService();
+$ok = $db->updateStock($id, $stock, $threshold);
 
-try {
-    $pdo = db();
-    $sql = 'UPDATE `menu_items` SET stock = :stock, low_stock_threshold = :threshold WHERE id = :id';
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindValue(':stock',     $stock, PDO::PARAM_INT);
-    $stmt->bindValue(':threshold', $lowStockThreshold, PDO::PARAM_INT);
-    $stmt->bindValue(':id',        $id, PDO::PARAM_INT);
-    $stmt->execute();
-
-    if ($stmt->rowCount() >= 0) {
-        json_response([
-            'success' => true,
-            'message' => 'Stock updated successfully.'
-        ]);
-    } else {
-        json_response(['success' => false, 'message' => 'Item not found.'], 404);
-    }
-} catch (PDOException $e) {
-    json_response(['success' => false, 'message' => 'Database error: ' . $e->getMessage()], 500);
+if ($ok) {
+    json_response([
+        'success'   => true,
+        'message'   => "Stock for item #{$id} updated to {$stock} units.",
+        'stock'     => $stock,
+        'threshold' => $threshold,
+    ]);
+} else {
+    json_response(['success' => false, 'message' => 'Failed to update stock.'], 500);
 }

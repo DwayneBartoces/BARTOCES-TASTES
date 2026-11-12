@@ -1,20 +1,20 @@
 <?php
-// ============================================================
-// API: auth_check.php
-// Returns the current PHP session user as JSON
-// ============================================================
-session_start();
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-cache');
+// ==============================================================================
+// BARTOCES TASTES - SYMFONY API: AUTH CHECK
+// ==============================================================================
+// Returns current authenticated session status and user data.
+// ==============================================================================
 
-if (!empty($_SESSION['user'])) {
-    echo json_encode([
-        'loggedIn' => true,
-        'user'     => $_SESSION['user']
-    ]);
-} else {
-    echo json_encode([
-        'loggedIn' => false,
-        'user'     => null
-    ]);
+require_once __DIR__ . '/../includes/config.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
+
+$user = $_SESSION['user'] ?? null;
+
+json_response([
+    'success'  => true,
+    'loggedIn' => !empty($user),
+    'user'     => $user,
+]);

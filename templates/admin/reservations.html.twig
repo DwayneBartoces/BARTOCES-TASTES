@@ -1,0 +1,112 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Table Reservations - Bartoces Tastes (Symfony 6.4){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-calendar-check"></i> Table Reservations</h1>
+        <p>Guest seating schedules, banquet bookings, and reservation status management.</p>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <a href="{{ path('admin_reservations', {status: 'all'}) }}" class="filter-tab {% if currentStatus == 'all' %}active{% endif %}">
+        All Bookings
+    </a>
+    <a href="{{ path('admin_reservations', {status: 'pending'}) }}" class="filter-tab {% if currentStatus == 'pending' %}active{% endif %}">
+        <i class="fa-solid fa-clock"></i> Pending Confirmation
+    </a>
+    <a href="{{ path('admin_reservations', {status: 'confirmed'}) }}" class="filter-tab {% if currentStatus == 'confirmed' %}active{% endif %}">
+        <i class="fa-solid fa-check"></i> Confirmed
+    </a>
+    <a href="{{ path('admin_reservations', {status: 'cancelled'}) }}" class="filter-tab {% if currentStatus == 'cancelled' %}active{% endif %}">
+        <i class="fa-solid fa-ban"></i> Cancelled
+    </a>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <h2><i class="fa-solid fa-chair" style="color:var(--gold); margin-right:8px;"></i> Reservation Roster ({{ reservations|length }})</h2>
+    </div>
+
+    {% if reservations is empty %}
+        <div style="padding: 40px; text-align: center; color: var(--muted);">
+            <i class="fa-solid fa-calendar-xmark" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+            No reservations found under <strong>{{ currentStatus|capitalize }}</strong>.
+        </div>
+    {% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Guest Details</th>
+                <th>Date & Time</th>
+                <th>Party Size</th>
+                <th>Seating Area</th>
+                <th>Special Requests</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reservations %}
+            <tr>
+                <td><small style="color:var(--muted);">#{{ r.id }}</small></td>
+                <td>
+                    <strong>{{ r.name }}</strong>
+                    <div style="font-size:11.5px; color:var(--muted);"><i class="fa-solid fa-phone"></i> {{ r.phone }}</div>
+                </td>
+                <td>
+                    <div style="font-weight:600; color:var(--text);">{{ r.reservation_date|date('M d, Y') }}</div>
+                    <div style="font-size:11.5px; color:var(--gold);"><i class="fa-regular fa-clock"></i> {{ r.reservation_time }}</div>
+                </td>
+                <td>
+                    <span class="badge" style="background:var(--surface2); color:var(--text);">
+                        <i class="fa-solid fa-users"></i> {{ r.guests }}
+                    </span>
+                </td>
+                <td>
+                    <span style="font-size:12.5px; color:var(--muted);">{{ r.seating|default('Indoor Main Dining') }}</span>
+                </td>
+                <td>
+                    <small style="color:var(--muted);">{{ r.special_notes|default('None') }}</small>
+                </td>
+                <td>
+                    <span class="badge badge-{{ r.status }}">{{ r.status|capitalize }}</span>
+                </td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        {% if r.status != 'confirmed' %}
+                        <form method="POST" action="{{ path('admin_reservation_status', {id: r.id}) }}" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="status" value="confirmed">
+                            <button type="submit" class="btn-success btn-sm" title="Confirm Reservation">
+                                <i class="fa-solid fa-check"></i> Confirm
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if r.status != 'cancelled' %}
+                        <form method="POST" action="{{ path('admin_reservation_status', {id: r.id}) }}" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="status" value="cancelled">
+                            <button type="submit" class="btn-secondary btn-sm" title="Cancel Reservation">
+                                <i class="fa-solid fa-ban"></i> Cancel
+                            </button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" action="{{ path('admin_reservation_delete', {id: r.id}) }}" onsubmit="return confirm('Delete reservation for {{ r.name }}?');" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-danger btn-sm" title="Delete Booking">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

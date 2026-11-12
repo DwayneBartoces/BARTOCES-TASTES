@@ -1,16 +1,23 @@
 <?php
-// ============================================================
-// BARTOCES TASTES - LOGIN & REGISTRATION (PHP PDO + MySQL)
-// Strictly follows Week 7: PHP Forms, Validation & Database CRUD
-// ============================================================
-require_once 'config.php';
 
-session_start();
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/src/Entity/User.php';
+require_once __DIR__ . '/src/Repository/UserRepository.php';
+require_once __DIR__ . '/src/Service/DatabaseService.php';
 
-// If already logged in, route by role
+use App\Entity\User;
+use App\Repository\UserRepository;
+use App\Service\DatabaseService;
+
+$db = new DatabaseService();
+$userRepo = new UserRepository($db);
+
 if (!empty($_SESSION['user'])) {
-    if ($_SESSION['user']['role'] === 'admin') {
-        redirect('admin.php');
+    $role = $_SESSION['user']['role'] ?? 'user';
+    if ($role === 'admin') {
+        redirect('admin_symfony.php');
+    } elseif ($role === 'staff') {
+        redirect('staff.php');
     } else {
         redirect('index.php');
     }
@@ -19,100 +26,74 @@ if (!empty($_SESSION['user'])) {
 $error   = '';
 $success = '';
 
-// ---- Handle POST (Login or Register per PDF Week 7) ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? 'login';
+    
+    if (!DatabaseService::validateCsrfToken($_POST['_csrf_token'] ?? '')) {
+        $error = 'Security session expired. Please refresh and try again.';
+    } else {
+        $action = $_POST['action'] ?? 'login';
 
-    // ---- LOGIN ----
-    if ($action === 'login') {
-        $identifier = sanitize($_POST['identifier'] ?? '');
-        $password   = $_POST['password'] ?? '';
-        $role       = sanitize($_POST['role'] ?? 'user');
+        
+        if ($action === 'login') {
+            $identifier = sanitize($_POST['identifier'] ?? '');
+            $password   = $_POST['password'] ?? '';
 
-        if (empty($identifier) || empty($password)) {
-            $error = 'Please fill in all fields.';
-        } else {
-            $pdo = db();
-            // Prepared statement with named placeholders (PDF Week 7 slide 14, 19)
-            $sql = 'SELECT * FROM `users` WHERE (`username` = :identifier OR `email` = :identifier) LIMIT 1';
-            $stmt = $pdo->prepare($sql);
-            $stmt->bindValue(':identifier', $identifier);
-            $stmt->execute();
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$user || !password_verify($password, $user['password'])) {
-                $error = 'Invalid username/email or password.';
+            if (empty($identifier) || empty($password)) {
+                $error = 'Please fill in all fields.';
             } else {
-                // Create session
-                $_SESSION['user'] = [
-                    'id'       => (int)$user['id'],
-                    'name'     => $user['name'],
-                    'username' => $user['username'],
-                    'email'    => $user['email'],
-                    'phone'    => $user['phone'] ?? '',
-                    'role'     => $user['role'],
-                ];
-                // Admin sign in redirects to admin portal
-                if ($user['role'] === 'admin') {
-                    redirect('admin.php');
+                $user = $userRepo->findByUsernameOrEmail($identifier);
+
+                if (!$user || !$user->verifyPassword($password)) {
+                    $error = 'Invalid username/email or password.';
+                } elseif ($user->isDisabled() || $user->isArchived()) {
+                    $error = 'Your account has been ' . $user->getStatus() . '. Please contact the restaurant administrator.';
                 } else {
-                    redirect('index.php');
+                    $_SESSION['user'] = $user->toSessionArray();
+
+                    if ($user->isAdmin()) {
+                        redirect('admin_symfony.php');
+                    } elseif ($user->isStaff()) {
+                        redirect('staff.php');
+                    } else {
+                        redirect('index.php');
+                    }
                 }
             }
         }
-    }
 
-    // ---- REGISTER ----
-    elseif ($action === 'register') {
-        $name     = sanitize($_POST['reg_name']     ?? '');
-        $email    = trim($_POST['reg_email']        ?? '');
-        $username = sanitize($_POST['reg_username'] ?? '');
-        $phone    = sanitize($_POST['reg_phone']    ?? '');
-        $password = $_POST['reg_password']          ?? '';
+        
+        elseif ($action === 'register') {
+            $name     = sanitize($_POST['reg_name']     ?? '');
+            $email    = trim($_POST['reg_email']        ?? '');
+            $username = sanitize($_POST['reg_username'] ?? '');
+            $phone    = sanitize($_POST['reg_phone']    ?? '');
+            $password = $_POST['reg_password']          ?? '';
 
-        if (empty($name) || empty($email) || empty($username) || empty($password)) {
-            $error = 'Please fill in all required fields.';
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = 'Please enter a valid email address.';
-        } elseif (strlen($password) < 6) {
-            $error = 'Password must be at least 6 characters.';
-        } else {
-            $pdo = db();
-
-            // Check duplicates with prepared statement
-            $checkSql = 'SELECT id FROM `users` WHERE `email` = :email OR `username` = :username LIMIT 1';
-            $checkStmt = $pdo->prepare($checkSql);
-            $checkStmt->bindValue(':email',    $email);
-            $checkStmt->bindValue(':username', $username);
-            $checkStmt->execute();
-
-            if ($checkStmt->fetch(PDO::FETCH_ASSOC)) {
-                $error = 'Email or username already exists. Please use a different one.';
+            if (empty($name) || empty($email) || empty($username) || empty($password)) {
+                $error = 'Please fill in all required fields.';
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $error = 'Please enter a valid email address.';
+            } elseif (strlen($password) < 6) {
+                $error = 'Password must be at least 6 characters.';
+            } elseif ($userRepo->findByUsername($username)) {
+                $error = 'That username is already taken. Please choose another.';
+            } elseif ($userRepo->findByEmail($email)) {
+                $error = 'An account with that email already exists.';
             } else {
-                $hashed = password_hash($password, PASSWORD_DEFAULT);
-                $insertSql = 'INSERT INTO `users` (`username`, `email`, `name`, `password`, `phone`, `role`) 
-                              VALUES (:username, :email, :name, :password, :phone, "user")';
-                $insertStmt = $pdo->prepare($insertSql);
-                $insertStmt->bindValue(':username', $username);
-                $insertStmt->bindValue(':email',    $email);
-                $insertStmt->bindValue(':name',     $name);
-                $insertStmt->bindValue(':password', $hashed);
-                $insertStmt->bindValue(':phone',    $phone);
+                $newUser = (new User())
+                    ->setName($name)
+                    ->setUsername($username)
+                    ->setEmail($email)
+                    ->setPhone($phone)
+                    ->setPlainPassword($password)
+                    ->setRole('user')
+                    ->setStatus('active');
 
-                if ($insertStmt->execute()) {
-                    $newId = (int)$pdo->lastInsertId();
-
-                    $_SESSION['user'] = [
-                        'id'       => $newId,
-                        'name'     => $name,
-                        'username' => $username,
-                        'email'    => $email,
-                        'phone'    => $phone,
-                        'role'     => 'user',
-                    ];
+                if ($userRepo->save($newUser)) {
+                    $_SESSION['user'] = $newUser->toSessionArray();
                     redirect('index.php');
                 } else {
-                    $error = 'Registration failed. Please try again.';
+                    $error = 'Failed to create your account. Please try again.';
                 }
             }
         }
@@ -122,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = 'Sign In - Bartoces Tastes Est. 2026';
 $appName   = 'BARTOCES TASTES';
 $estYear   = 2026;
+$dbSource  = $db->getDbSource();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -140,7 +122,7 @@ $estYear   = 2026;
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Login Stylesheet -->
-    <link rel="stylesheet" href="login.css">
+    <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
 
@@ -152,12 +134,14 @@ $estYear   = 2026;
 
             <!-- BRAND LOGO & TITLE -->
             <div class="login-brand">
-                <img src="images/logo.png" alt="<?php echo $appName; ?> Logo" class="login-logo">
+                <a href="index.php">
+                    <img src="images/logo.png" alt="<?php echo $appName; ?> Logo" class="login-logo">
+                </a>
                 <h1 id="brandTitle">WELCOME TO <?php echo $appName; ?></h1>
-                <p id="brandSubtitle">Sign in to order your favorite dishes or reserve a table</p>
+                <p id="brandSubtitle">Sign in to your account</p>
             </div>
 
-            <!-- SERVER-SIDE ALERT (PHP error/success) -->
+            <!-- SERVER-SIDE ALERT -->
             <?php if ($error): ?>
             <div class="auth-alert auth-alert-error" role="alert" id="phpAlert">
                 <i class="fa-solid fa-circle-exclamation"></i>
@@ -180,22 +164,19 @@ $estYear   = 2026;
             <!-- 1. SIGN IN FORM -->
             <form id="signInForm" class="auth-form" method="POST" action="login.php">
                 <input type="hidden" name="action" value="login">
-                <input type="hidden" name="role" id="roleField" value="user">
+                <input type="hidden" name="_csrf_token" value="<?php echo htmlspecialchars(DatabaseService::getCsrfToken()); ?>">
 
                 <div class="form-group">
                     <label for="loginIdentifier">Username or Email</label>
                     <div class="input-with-icon">
                         <i class="fa-regular fa-user field-icon"></i>
                         <input type="text" id="loginIdentifier" name="identifier"
-                               placeholder="e.g. user or user@bartoces.com" required autocomplete="username">
+                               placeholder="e.g. user, admin, or your email" required autocomplete="username">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <div class="form-label-row">
-                        <label for="loginPassword">Password</label>
-                        <span class="forgot-pwd-text">Forgot Password?</span>
-                    </div>
+                    <label for="loginPassword">Password</label>
                     <div class="input-with-icon">
                         <i class="fa-regular fa-lock field-icon"></i>
                         <input type="password" id="loginPassword" name="password"
@@ -204,17 +185,20 @@ $estYear   = 2026;
                             <i class="fa-regular fa-eye" id="loginEyeIcon"></i>
                         </button>
                     </div>
+                    <div class="forgot-pwd-wrap">
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-auth-submit" id="btnSubmitAuth">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i>
-                    <span id="submitBtnText">SIGN IN TO DINE</span>
+                    <span id="submitBtnText">SIGN IN</span>
                 </button>
             </form>
 
             <!-- 2. REGISTRATION FORM -->
             <form id="signUpForm" class="auth-form" method="POST" action="login.php" style="display: none;">
                 <input type="hidden" name="action" value="register">
+                <input type="hidden" name="_csrf_token" value="<?php echo htmlspecialchars(DatabaseService::getCsrfToken()); ?>">
 
                 <div class="form-group">
                     <label for="regName">Full Name</label>
@@ -271,6 +255,12 @@ $estYear   = 2026;
                 <a id="toggleModeLink" style="cursor:pointer;">Create Account</a>
             </div>
 
+            <div style="text-align: center; margin-top: 16px;">
+                <a href="index.php" style="color: var(--muted); font-size: 13px; text-decoration: none;">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Homepage
+                </a>
+            </div>
+
         </div>
 
         <p class="login-footer-note">© <?php echo $estYear; ?> <?php echo $appName; ?> • Fine Casual Dining &amp; Authentic Flavors</p>
@@ -295,10 +285,9 @@ $estYear   = 2026;
         const regPassword     = document.getElementById('regPassword');
         const regEyeIcon      = document.getElementById('regEyeIcon');
 
-        // If PHP returned an error, show the alert on the correct tab
         const phpAlert = document.getElementById('phpAlert');
         if (phpAlert) {
-            authAlert.style.display = 'none'; // PHP one is shown instead
+            authAlert.style.display = 'none';
         }
 
         function showJsAlert(msg, type = 'error') {
@@ -311,7 +300,6 @@ $estYear   = 2026;
             authAlert.style.display = 'none';
         }
 
-        // ---- Sign In / Sign Up Toggle ----
         function toggleMode() {
             isSignUpMode = !isSignUpMode;
             hideJsAlert();
@@ -322,20 +310,19 @@ $estYear   = 2026;
                 toggleModeText.textContent = 'Already have an account?';
                 toggleModeLink.textContent = 'Sign In';
                 brandSubtitle.textContent  = 'Create a new customer account to start ordering';
-                submitBtnText.textContent  = 'CREATE ACCOUNT & DINE';
+                submitBtnText.textContent  = 'CREATE ACCOUNT';
             } else {
                 signInForm.style.display  = 'block';
                 signUpForm.style.display  = 'none';
                 toggleModeText.textContent = "Don't have an account yet?";
                 toggleModeLink.textContent = 'Create Account';
-                brandSubtitle.textContent  = 'Sign in to order your favorite dishes or reserve a table';
-                submitBtnText.textContent  = 'SIGN IN TO DINE';
+                brandSubtitle.textContent  = 'Sign in to your account';
+                submitBtnText.textContent  = 'SIGN IN';
             }
         }
 
         toggleModeLink.addEventListener('click', toggleMode);
 
-        // ---- Password Visibility Toggles ----
         toggleLoginPwd.addEventListener('click', () => {
             const isText = loginPassword.type === 'text';
             loginPassword.type   = isText ? 'password' : 'text';
@@ -349,7 +336,6 @@ $estYear   = 2026;
                 regEyeIcon.className = isText ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
             });
         }
-
     });
     </script>
 

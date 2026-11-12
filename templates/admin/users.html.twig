@@ -1,0 +1,339 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}User & Staff Management - Bartoces Tastes (Symfony 6.4){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-users-gear"></i> User Directory &amp; Staff Lifecycle</h1>
+        <p>Full administrative lifecycle control: create, edit, disable/archive staff, manage roles, and delete with confirmation.</p>
+    </div>
+    <div>
+        <button type="button" class="btn-primary" onclick="openAddUserModal()">
+            <i class="fa-solid fa-user-plus"></i> Add Account / Staff
+        </button>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <h2><i class="fa-solid fa-id-badge" style="color:var(--gold); margin-right:8px;"></i> Registered Accounts &amp; Staff ({{ users|length }})</h2>
+    </div>
+
+    
+    <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div style="position:relative; flex:1; min-width:200px;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:13px;"></i>
+            <input type="text" id="userSearch" placeholder="Search name, username, email…"
+                   class="admin-input" style="width:100%; padding-left:34px;"
+                   oninput="filterUsersTable()">
+        </div>
+        <select id="userRole" class="admin-select" onchange="filterUsersTable()">
+            <option value="">All Roles</option>
+            <option value="admin">Administrator</option>
+            <option value="staff">Staff</option>
+            <option value="user">Customer</option>
+        </select>
+        <select id="userStatus" class="admin-select" onchange="filterUsersTable()">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+            <option value="archived">Archived</option>
+        </select>
+        <button type="button" class="btn-secondary btn-sm" onclick="clearUsersFilters()">
+            <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+        <span id="usersCount" style="font-size:12px; color:var(--muted); margin-left:4px;"></span>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Full Name</th>
+                <th>Username</th>
+                <th>Email / Contact</th>
+                <th>Role</th>
+                <th>Account Status</th>
+                <th>Registered</th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr data-name="{{ u.name|lower }}"
+                data-username="{{ u.username|lower }}"
+                data-email="{{ u.email|lower }}"
+                data-role="{{ u.role|lower }}"
+                data-status="{{ u.status|default('active')|lower }}">
+                <td><small style="color:var(--muted);">#{{ u.id }}</small></td>
+                <td>
+                    <strong>{{ u.name }}</strong>
+                </td>
+                <td>
+                    <code style="color:var(--gold);">@{{ u.username }}</code>
+                </td>
+                <td>
+                    <div>{{ u.email }}</div>
+                    {% if u.phone %}
+                    <small style="color:var(--muted);"><i class="fa-solid fa-phone" style="font-size:10px;"></i> {{ u.phone }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if u.role == 'admin' %}
+                        <span class="badge" style="background:rgba(201,168,76,0.18); border:1px solid rgba(201,168,76,0.4); color:var(--gold-light);">
+                            <i class="fa-solid fa-shield-halved"></i> Administrator
+                        </span>
+                    {% elseif u.role == 'staff' %}
+                        <span class="badge" style="background:rgba(91,155,213,0.18); border:1px solid rgba(91,155,213,0.4); color:var(--blue);">
+                            <i class="fa-solid fa-kitchen-set"></i> Staff
+                        </span>
+                    {% else %}
+                        <span class="badge" style="background:var(--surface2); color:var(--muted);">
+                            <i class="fa-solid fa-user"></i> Customer
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if u.status == 'active' %}
+                        <span class="badge badge-completed">
+                            <i class="fa-solid fa-circle-check"></i> Active
+                        </span>
+                    {% elseif u.status == 'disabled' %}
+                        <span class="badge badge-cancelled" style="background:rgba(235,140,50,0.15); color:#f0ad4e; border-color:rgba(235,140,50,0.3);">
+                            <i class="fa-solid fa-ban"></i> Disabled
+                        </span>
+                    {% elseif u.status == 'archived' %}
+                        <span class="badge" style="background:var(--surface3); color:var(--muted); border:1px solid var(--border);">
+                            <i class="fa-solid fa-box-archive"></i> Archived
+                        </span>
+                    {% else %}
+                        <span class="badge badge-completed">{{ u.status|default('active')|capitalize }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <small style="color:var(--muted);">{{ u.created_at|date('M d, Y') }}</small>
+                </td>
+                <td>
+                    <div style="display:flex; gap:6px; justify-content:flex-end; align-items:center;">
+                        
+                        <button type="button" class="btn-secondary btn-sm" title="Edit User Information"
+                                onclick="openEditUserModal({{ u.id }}, '{{ u.name|e('js') }}', '{{ u.username|e('js') }}', '{{ u.email|e('js') }}', '{{ u.phone|e('js') }}', '{{ u.role }}', '{{ u.status|default('active') }}')">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+
+                        
+                        {% if u.status == 'active' %}
+                        <form method="POST" action="{{ path('admin_user_status', {id: u.id}) }}" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="status" value="disabled">
+                            <button type="submit" class="btn-secondary btn-sm" title="Disable Account" style="color:#f0ad4e;">
+                                <i class="fa-solid fa-user-slash"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{{ path('admin_user_status', {id: u.id}) }}" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="status" value="active">
+                            <button type="submit" class="btn-secondary btn-sm" title="Activate Account" style="color:var(--green);">
+                                <i class="fa-solid fa-user-check"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        
+                        <form method="POST" action="{{ path('admin_user_delete', {id: u.id}) }}" onsubmit="return confirm('Are you sure you want to permanently delete user account @{{ u.username }}? This action cannot be undone.');" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-danger btn-sm" title="Delete Account">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="addUserModal" class="admin-modal-backdrop">
+    <div class="admin-modal-card">
+        <h3 style="font-family:'Playfair Display',serif; color:var(--gold); margin-bottom:16px;">
+            <i class="fa-solid fa-user-plus"></i> Create New Account or Staff
+        </h3>
+        <form method="POST" action="{{ path('admin_user_add') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Full Name *</label>
+                    <input type="text" name="name" class="admin-input" style="width:100%;" required placeholder="Elena Reyes">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Username *</label>
+                    <input type="text" name="username" class="admin-input" style="width:100%;" required placeholder="elenareyes">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Email Address *</label>
+                    <input type="email" name="email" class="admin-input" style="width:100%;" required placeholder="elena@bartoces.com">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Mobile Phone</label>
+                    <input type="tel" name="phone" class="admin-input" style="width:100%;" placeholder="0922 456 7890">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:18px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Password *</label>
+                    <input type="password" name="password" class="admin-input" style="width:100%;" required placeholder="Min 6 chars">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">System Role *</label>
+                    <select name="role" class="admin-select" style="width:100%;">
+                        <option value="staff" selected>Staff (Sous Chef / Server)</option>
+                        <option value="admin">Administrator (Admin)</option>
+                        <option value="user">Customer (Diner)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Status</label>
+                    <select name="status" class="admin-select" style="width:100%;">
+                        <option value="active" selected>Active</option>
+                        <option value="disabled">Disabled</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="btn-secondary" onclick="closeAddUserModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Create Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="editUserModal" class="admin-modal-backdrop">
+    <div class="admin-modal-card">
+        <h3 style="font-family:'Playfair Display',serif; color:var(--gold); margin-bottom:16px;">
+            <i class="fa-solid fa-user-pen"></i> Edit Account Details &amp; Privileges
+        </h3>
+        <form id="editUserForm" method="POST" action="">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Full Name *</label>
+                    <input type="text" id="edit_name" name="name" class="admin-input" style="width:100%;" required>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Username *</label>
+                    <input type="text" id="edit_username" name="username" class="admin-input" style="width:100%;" required>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Email Address *</label>
+                    <input type="email" id="edit_email" name="email" class="admin-input" style="width:100%;" required>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Mobile Phone</label>
+                    <input type="tel" id="edit_phone" name="phone" class="admin-input" style="width:100%;">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">System Role</label>
+                    <select id="edit_role" name="role" class="admin-select" style="width:100%;">
+                        <option value="user">Customer (Diner)</option>
+                        <option value="staff">Staff (Sous Chef / Server)</option>
+                        <option value="admin">Administrator (Admin)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Account Status (Archive / Disable)</label>
+                    <select id="edit_status" name="status" class="admin-select" style="width:100%;">
+                        <option value="active">Active</option>
+                        <option value="disabled">Disabled</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Reset Password (Leave blank to keep current password)</label>
+                <input type="password" name="password" class="admin-input" style="width:100%;" placeholder="Enter new password if resetting">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="btn-secondary" onclick="closeEditUserModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+<script>
+function openAddUserModal() {
+    document.getElementById('addUserModal').classList.add('active');
+}
+function closeAddUserModal() {
+    document.getElementById('addUserModal').classList.remove('active');
+}
+
+function openEditUserModal(id, name, username, email, phone, role, status) {
+    const form = document.getElementById('editUserForm');
+    form.action = "{{ path('admin_users') }}".replace('/users', '/user/edit/' + id);
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_username').value = username;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_phone').value = phone;
+    document.getElementById('edit_role').value = role;
+    document.getElementById('edit_status').value = status || 'active';
+    document.getElementById('editUserModal').classList.add('active');
+}
+function closeEditUserModal() {
+    document.getElementById('editUserModal').classList.remove('active');
+}
+
+// ===== USERS SEARCH & FILTER (Rubric: Section 4 - Search & filter records) =====
+function filterUsersTable() {
+    const q        = (document.getElementById('userSearch').value || '').toLowerCase();
+    const role     = (document.getElementById('userRole').value || '').toLowerCase();
+    const status   = (document.getElementById('userStatus').value || '').toLowerCase();
+    const rows     = document.querySelectorAll('table.data-table tbody tr');
+    let visible    = 0;
+    rows.forEach(row => {
+        const name     = (row.dataset.name     || '').toLowerCase();
+        const username = (row.dataset.username || '').toLowerCase();
+        const email    = (row.dataset.email    || '').toLowerCase();
+        const rowRole  = (row.dataset.role     || '').toLowerCase();
+        const rowStatus= (row.dataset.status   || '').toLowerCase();
+        const matchQ    = !q     || name.includes(q) || username.includes(q) || email.includes(q);
+        const matchRole = !role  || rowRole === role;
+        const matchStat = !status|| rowStatus === status;
+        const show = matchQ && matchRole && matchStat;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    const countEl = document.getElementById('usersCount');
+    if (countEl) countEl.textContent = visible + ' account' + (visible !== 1 ? 's' : '') + ' shown';
+}
+function clearUsersFilters() {
+    document.getElementById('userSearch').value = '';
+    document.getElementById('userRole').value = '';
+    document.getElementById('userStatus').value = '';
+    filterUsersTable();
+}
+document.addEventListener('DOMContentLoaded', function() { filterUsersTable(); });
+</script>
+{% endblock %}

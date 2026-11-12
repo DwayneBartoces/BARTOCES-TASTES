@@ -1,0 +1,99 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Staff Dashboard - Bartoces Tastes (Symfony 6.4){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-kitchen-set"></i> Restaurant Staff Portal</h1>
+        <p>Welcome, <strong>{{ user.name|default(user.username) }}</strong>. Manage your culinary records, fulfill live orders, and coordinate table bookings.</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <a href="{{ path('staff_inventory') }}" class="btn-primary btn-sm">
+            <i class="fa-solid fa-plus"></i> Add New Dish Record
+        </a>
+    </div>
+</div>
+
+<div style="background:rgba(91,155,213,0.12); border:1px solid rgba(91,155,213,0.3); border-radius:12px; padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; gap:14px;">
+    <div style="font-size:24px; color:var(--blue);"><i class="fa-solid fa-circle-info"></i></div>
+    <div style="font-size:13px; line-height:1.5;">
+        <strong style="color:var(--text);">Role-Based Access Control Notice:</strong>
+        <span style="color:var(--muted);">As a verified staff member, you have authorization to create new dishes and modify/delete <strong>your own records</strong>. System-wide administrative controls and user management are securely restricted to the Executive Chef / Administrator.</span>
+    </div>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 24px;">
+    <div class="stat-card" style="border: 1px solid rgba(91,155,213,0.4); background: linear-gradient(145deg, var(--surface) 0%, rgba(91,155,213,0.08) 100%);">
+        <div class="stat-icon icon-blue">
+            <i class="fa-solid fa-utensils"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.staff_records|default(0) }}</h3>
+            <p><strong style="color:var(--blue);">My Dishes Created</strong> (Owned Records)</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon icon-gold">
+            <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_records|default(0) }}</h3>
+            <p>Total Menu Catalog Items</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon icon-green">
+            <i class="fa-solid fa-bag-shopping"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_orders|default(0) }}</h3>
+            <p>Active Orders in Queue</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon icon-red">
+            <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_reservations|default(0) }}</h3>
+            <p>Table Bookings</p>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <a href="{{ path('staff_inventory') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-gold"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div class="stat-meta">
+            <h3>Menu Records</h3>
+            <p>Create dishes and manage your owned items</p>
+        </div>
+    </a>
+    <a href="{{ path('staff_orders') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-green"><i class="fa-solid fa-bell-concierge"></i></div>
+        <div class="stat-meta">
+            <h3>Kitchen Orders</h3>
+            <p>Update order progress (Preparing, Ready, Completed)</p>
+        </div>
+    </a>
+    <a href="{{ path('staff_reservations') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-blue"><i class="fa-solid fa-calendar-days"></i></div>
+        <div class="stat-meta">
+            <h3>Table Seating</h3>
+            <p>Confirm reservations and assign dining tables</p>
+        </div>
+    </a>
+    <a href="{{ path('staff_profile') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-gold"><i class="fa-solid fa-user-lock"></i></div>
+        <div class="stat-meta">
+            <h3>Security &amp; Password</h3>
+            <p>Update your personal password and credentials</p>
+        </div>
+    </a>
+</div>
+{% endblock %}
+

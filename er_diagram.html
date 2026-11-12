@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database ER Diagram — Bartoces Tastes (bartoces_db)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0e0d;
+      --surface: #1a1917;
+      --surface2: #242220;
+      --surface3: #2d2a27;
+      --border: #2e2b28;
+      --gold: #c9a84c;
+      --gold-light: #e8c86b;
+      --gold-dim: rgba(201,168,76,0.15);
+      --text: #f0ebe3;
+      --muted: #888075;
+      --red: #e05c5c;
+      --green: #5cb85c;
+      --blue: #5b9bd5;
+      --orange: #e67e22;
+      --purple: #a78bda;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(26,25,23,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-title {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .header-title h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px; color: var(--gold);
+    }
+    .header-title p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .header-controls { display: flex; gap: 8px; }
+    .ctrl-btn {
+      padding: 6px 14px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); font-size: 12px;
+      font-family: inherit; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .ctrl-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .ctrl-btn.primary { background: var(--gold); color: #0f0e0d; border-color: var(--gold); font-weight: 700; }
+    .ctrl-btn.primary:hover { background: var(--gold-light); }
+
+    /* ── LEGEND ── */
+    .legend {
+      position: fixed; bottom: 20px; left: 20px; z-index: 100;
+      background: rgba(26,25,23,0.92); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 18px;
+    }
+    .legend-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .legend-line { width: 28px; height: 2px; }
+    .legend-line.fk { background: var(--gold); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .legend-dot.pk { background: var(--gold); }
+    .legend-dot.fk { background: var(--blue); }
+    .legend-dot.field { background: var(--muted); }
+
+    /* ── ZOOM HINT ── */
+    .zoom-hint {
+      position: fixed; bottom: 20px; right: 20px; z-index: 100;
+      background: rgba(26,25,23,0.85); backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 16px; font-size: 12px; color: var(--muted);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .zoom-hint span { display: flex; align-items: center; gap: 6px; }
+    .zoom-hint kbd {
+      background: var(--surface3); border: 1px solid var(--border);
+      border-radius: 4px; padding: 1px 6px; font-size: 11px; color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── CANVAS ── */
+    #canvas-wrap {
+      position: fixed; inset: 57px 0 0 0;
+      overflow: hidden; cursor: grab;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(201,168,76,0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(91,155,213,0.03) 0%, transparent 50%),
+        var(--bg);
+    }
+    #canvas-wrap:active { cursor: grabbing; }
+    #canvas-wrap.no-select { user-select: none; }
+
+    /* Dot grid */
+    #canvas-wrap::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+    }
+
+    #canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+
+    /* SVG arrows */
+    #arrows-svg {
+      position: absolute; top: 0; left: 0;
+      width: 4000px; height: 3000px;
+      pointer-events: none; overflow: visible;
+    }
+    .arrow-line {
+      stroke-width: 2;
+      fill: none;
+      stroke-dasharray: none;
+      opacity: 0.65;
+      transition: opacity 0.2s, stroke-width 0.2s;
+    }
+    .arrow-line.fk { stroke: var(--gold); }
+    .arrow-line.highlighted { opacity: 1; stroke-width: 3; stroke: var(--gold-light); }
+
+    /* ── TABLE CARDS ── */
+    .table-card {
+      position: absolute;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      min-width: 250px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transition: box-shadow 0.2s, border-color 0.2s;
+      cursor: move;
+      user-select: none;
+    }
+    .table-card:hover, .table-card.hovered {
+      border-color: var(--gold);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.2);
+    }
+    .table-card.dragging {
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 2px var(--gold);
+      z-index: 999 !important;
+    }
+
+    .table-header {
+      padding: 12px 16px 10px;
+      background: linear-gradient(135deg, var(--surface2), #201a14);
+      border-bottom: 1px solid var(--border);
+      border-radius: 12px 12px 0 0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .table-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+    }
+    .table-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px; font-weight: 600; color: var(--gold);
+      letter-spacing: 0.3px;
+    }
+    .table-db { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .table-row-count {
+      margin-left: auto;
+      font-size: 10px; color: var(--muted);
+      background: var(--surface3); padding: 2px 7px; border-radius: 10px;
+    }
+
+    .table-fields { padding: 6px 0 8px; }
+    .field-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 14px; font-size: 12px;
+      transition: background 0.15s;
+    }
+    .field-row:hover { background: rgba(255,255,255,0.03); }
+    .field-key {
+      font-size: 10px; width: 16px; text-align: center; flex-shrink: 0;
+    }
+    .field-key.pk { color: var(--gold); }
+    .field-key.fk { color: var(--blue); }
+    .field-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px; color: var(--text); flex: 1;
+      white-space: nowrap;
+    }
+    .field-name.pk { color: var(--gold); font-weight: 600; }
+    .field-name.fk { color: #8ec3f8; font-weight: 500; }
+    .field-type {
+      font-size: 10.5px; color: var(--muted);
+      background: var(--surface3); padding: 1px 6px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+    }
+    .field-divider { height: 1px; background: var(--border); margin: 4px 14px; }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: scale(0.93) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .table-card { animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">
+    <div>
+      <h1><i class="fa-solid fa-database" style="margin-right:6px; color:var(--gold);"></i> bartoces_db — Schema Diagram</h1>
+      <p>6 tables · 4 Foreign Keys · Drag &amp; drop arranged layout</p>
+    </div>
+  </div>
+  <div class="header-controls">
+    <a href="admin_symfony.php" class="ctrl-btn"><i class="fa-solid fa-arrow-left"></i> Admin Panel</a>
+    <button class="ctrl-btn" onclick="resetLayout()"><i class="fa-solid fa-rotate-left"></i> Reset Arrangement</button>
+    <button class="ctrl-btn" onclick="zoomOut()"><i class="fa-solid fa-minus"></i> Zoom Out</button>
+    <span id="zoomLabel" style="font-size:12px;color:var(--muted);align-self:center;min-width:42px;text-align:center;">100%</span>
+    <button class="ctrl-btn" onclick="zoomIn()"><i class="fa-solid fa-plus"></i> Zoom In</button>
+    <button class="ctrl-btn primary" onclick="fitToScreen()"><i class="fa-solid fa-expand"></i> Fit Canvas</button>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<div id="canvas-wrap">
+  <svg id="arrows-svg"></svg>
+  <div id="canvas"></div>
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-title">Legend</div>
+  <div class="legend-item"><span class="legend-dot pk"></span> Primary Key (PK)</div>
+  <div class="legend-item"><span class="legend-dot fk"></span> Foreign Key (FK)</div>
+  <div class="legend-item"><span class="legend-dot field"></span> Regular Field</div>
+  <div class="legend-item" style="margin-top:8px;"><div class="legend-line fk"></div> Foreign Key (FK Link)</div>
+</div>
+
+<!-- ZOOM HINT -->
+<div class="zoom-hint">
+  <span><i class="fa-solid fa-hand"></i> Drag background to pan canvas</span>
+  <span><i class="fa-solid fa-arrows-up-down-left-right"></i> Drag table header to reposition</span>
+  <span><i class="fa-solid fa-computer-mouse"></i> Scroll wheel to zoom in / out</span>
+</div>
+
+<script>
+// ── SCHEMA DATA ──────────────────────────────────────────────
+const schema = {
+  users: {
+    icon: '👤', color: '#5b9bd5', label: 'users',
+    fields: [
+      { name: 'id',         type: 'INT UNSIGNED', key: 'pk' },
+      { name: 'username',   type: 'VARCHAR(50)',  key: 'uk' },
+      { name: 'email',      type: 'VARCHAR(120)', key: 'uk' },
+      { name: 'name',       type: 'VARCHAR(120)', key: '' },
+      { name: 'password',   type: 'VARCHAR(255)', key: '' },
+      { name: 'phone',      type: 'VARCHAR(20)',  key: '' },
+      { name: 'role',       type: 'ENUM',         key: '' },
+      { name: 'created_at', type: 'DATETIME',     key: '' },
+    ]
+  },
+  contacts: {
+    icon: '✉️', color: '#a78bda', label: 'contacts',
+    fields: [
+      { name: 'id',         type: 'INT UNSIGNED', key: 'pk' },
+      { name: 'user_id',    type: 'INT UNSIGNED', key: 'fk' },
+      { name: 'name',       type: 'VARCHAR(120)', key: '' },
+      { name: 'email',      type: 'VARCHAR(120)', key: '' },
+      { name: 'subject',    type: 'VARCHAR(200)', key: '' },
+      { name: 'message',    type: 'TEXT',         key: '' },
+      { name: 'is_read',    type: 'TINYINT(1)',   key: '' },
+      { name: 'created_at', type: 'DATETIME',     key: '' },
+    ]
+  },
+  orders: {
+    icon: '🛍️', color: '#c9a84c', label: 'orders',
+    fields: [
+      { name: 'id',               type: 'INT UNSIGNED',  key: 'pk' },
+      { name: 'order_number',     type: 'VARCHAR(20)',    key: 'uk' },
+      { name: 'user_id',          type: 'INT UNSIGNED',   key: 'fk' },
+      { name: 'customer_name',    type: 'VARCHAR(120)',   key: '' },
+      { name: 'customer_phone',   type: 'VARCHAR(20)',    key: '' },
+      { name: 'order_type',       type: 'ENUM',           key: '' },
+      { name: 'table_number',     type: 'VARCHAR(10)',    key: '' },
+      { name: 'delivery_address', type: 'TEXT',           key: '' },
+      { name: 'payment_method',   type: 'VARCHAR(50)',    key: '' },
+      { name: 'subtotal',         type: 'DECIMAL(10,2)',  key: '' },
+      { name: 'delivery_fee',     type: 'DECIMAL(8,2)',   key: '' },
+      { name: 'total_amount',     type: 'DECIMAL(10,2)',  key: '' },
+      { name: 'special_notes',    type: 'TEXT',           key: '' },
+      { name: 'status',           type: 'ENUM',           key: '' },
+      { name: 'created_at',       type: 'DATETIME',       key: '' },
+    ]
+  },
+  reservations: {
+    icon: '📅', color: '#5cb85c', label: 'reservations',
+    fields: [
+      { name: 'id',               type: 'INT UNSIGNED', key: 'pk' },
+      { name: 'user_id',          type: 'INT UNSIGNED', key: 'fk' },
+      { name: 'name',             type: 'VARCHAR(120)', key: '' },
+      { name: 'phone',            type: 'VARCHAR(20)',  key: '' },
+      { name: 'reservation_date', type: 'DATE',         key: '' },
+      { name: 'reservation_time', type: 'VARCHAR(20)',  key: '' },
+      { name: 'guests',           type: 'VARCHAR(30)',  key: '' },
+      { name: 'seating',          type: 'VARCHAR(60)',  key: '' },
+      { name: 'special_notes',    type: 'TEXT',         key: '' },
+      { name: 'status',           type: 'ENUM',         key: '' },
+      { name: 'created_at',       type: 'DATETIME',     key: '' },
+    ]
+  },
+  order_items: {
+    icon: '📋', color: '#e67e22', label: 'order_items',
+    fields: [
+      { name: 'id',         type: 'INT UNSIGNED',  key: 'pk' },
+      { name: 'order_id',   type: 'INT UNSIGNED',  key: 'fk' },
+      { name: 'item_id',    type: 'INT UNSIGNED',  key: 'fk' },
+      { name: 'item_name',  type: 'VARCHAR(120)',  key: '' },
+      { name: 'unit_price', type: 'DECIMAL(8,2)',  key: '' },
+      { name: 'quantity',   type: 'INT UNSIGNED',  key: '' },
+      { name: 'addons',     type: 'VARCHAR(255)',  key: '' },
+      { name: 'subtotal',   type: 'DECIMAL(10,2)', key: '' },
+    ]
+  },
+  menu_items: {
+    icon: '🍽️', color: '#e05c5c', label: 'menu_items',
+    fields: [
+      { name: 'id',                  type: 'INT UNSIGNED', key: 'pk' },
+      { name: 'name',                type: 'VARCHAR(120)', key: 'uk' },
+      { name: 'description',         type: 'TEXT',         key: '' },
+      { name: 'price',               type: 'DECIMAL(8,2)', key: '' },
+      { name: 'category',            type: 'VARCHAR(50)',  key: '' },
+      { name: 'image',               type: 'VARCHAR(200)', key: '' },
+      { name: 'badge',               type: 'VARCHAR(60)',  key: '' },
+      { name: 'stock',               type: 'INT UNSIGNED', key: '' },
+      { name: 'low_stock_threshold', type: 'INT UNSIGNED', key: '' },
+      { name: 'is_active',           type: 'TINYINT(1)',   key: '' },
+      { name: 'created_at',          type: 'DATETIME',     key: '' },
+    ]
+  }
+};
+
+// FK relationships: [fromTable.field → toTable.field]
+const relationships = [
+  { from: 'orders',      fromField: 'user_id',  to: 'users',      toField: 'id' },
+  { from: 'reservations',fromField: 'user_id',  to: 'users',      toField: 'id' },
+  { from: 'contacts',    fromField: 'user_id',  to: 'users',      toField: 'id' },
+  { from: 'order_items', fromField: 'order_id', to: 'orders',     toField: 'id' },
+  { from: 'order_items', fromField: 'item_id',  to: 'menu_items', toField: 'id' },
+];
+
+// ── DEFAULT NEAT POSITIONS ─────────────────────────────────
+const defaultPositions = {
+  users:        { x: 80,   y: 60  },
+  contacts:     { x: 880,  y: 60  },
+  orders:       { x: 80,   y: 420 },
+  reservations: { x: 480,  y: 60  },
+  order_items:  { x: 480,  y: 480 },
+  menu_items:   { x: 880,  y: 420 },
+};
+
+let positions = JSON.parse(localStorage.getItem('er_positions') || 'null') || deepClone(defaultPositions);
+let zoomLevel = parseFloat(localStorage.getItem('er_zoom') || '0.9');
+let panX = parseFloat(localStorage.getItem('er_panX') || '60');
+let panY = parseFloat(localStorage.getItem('er_panY') || '30');
+
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+// ── RENDER ───────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const svg    = document.getElementById('arrows-svg');
+const wrap   = document.getElementById('canvas-wrap');
+
+function keySymbol(key) {
+  if (key === 'pk') return { sym: '🔑', cls: 'pk' };
+  if (key === 'fk') return { sym: '🔗', cls: 'fk' };
+  if (key === 'uk') return { sym: '◈',  cls: '' };
+  return { sym: '', cls: '' };
+}
+
+function buildCards() {
+  canvas.innerHTML = '';
+  Object.entries(schema).forEach(([tname, tdata], idx) => {
+    const card = document.createElement('div');
+    card.className = 'table-card';
+    card.id = 'card-' + tname;
+    card.style.left = (positions[tname]?.x ?? defaultPositions[tname].x) + 'px';
+    card.style.top  = (positions[tname]?.y ?? defaultPositions[tname].y) + 'px';
+    card.style.animationDelay = (idx * 0.05) + 's';
+    card.style.zIndex = 10 + idx;
+
+    let fieldsHTML = '';
+    tdata.fields.forEach((f, fi) => {
+      if (fi === 1) fieldsHTML += '<div class="field-divider"></div>';
+      const ks = keySymbol(f.key);
+      fieldsHTML += `
+        <div class="field-row" data-field="${f.name}" data-table="${tname}">
+          <span class="field-key ${ks.cls}">${ks.sym}</span>
+          <span class="field-name ${f.key === 'pk' ? 'pk' : ''} ${f.key === 'fk' ? 'fk' : ''}">${f.name}</span>
+          <span class="field-type">${f.type}</span>
+        </div>`;
+    });
+
+    card.innerHTML = `
+      <div class="table-header" style="border-top: 3px solid ${tdata.color}; border-radius: 12px 12px 0 0;">
+        <div class="table-icon" style="background: ${tdata.color}22;">${tdata.icon}</div>
+        <div>
+          <div class="table-name">${tdata.label}</div>
+          <div class="table-db">bartoces_db</div>
+        </div>
+        <div class="table-row-count">${tdata.fields.length} cols</div>
+      </div>
+      <div class="table-fields">${fieldsHTML}</div>`;
+
+    makeDraggable(card, tname);
+    card.addEventListener('mouseenter', () => highlightRelated(tname, true));
+    card.addEventListener('mouseleave', () => highlightRelated(tname, false));
+    canvas.appendChild(card);
+  });
+}
+
+// ── ARROW DRAWING ────────────────────────────────────────────
+function getCardRect(tname) {
+  const card = document.getElementById('card-' + tname);
+  if (!card) return null;
+  return {
+    x: positions[tname].x,
+    y: positions[tname].y,
+    w: card.offsetWidth,
+    h: card.offsetHeight,
+  };
+}
+
+function getFieldY(tname, fieldName) {
+  const card = document.getElementById('card-' + tname);
+  if (!card) return positions[tname].y + 30;
+  const row = card.querySelector(`[data-field="${fieldName}"]`);
+  if (!row) return positions[tname].y + 30;
+  const cardTop = positions[tname].y;
+  return cardTop + row.offsetTop + row.offsetHeight / 2;
+}
+
+function drawArrows() {
+  svg.innerHTML = `<defs>
+    <marker id="arrowhead-gold" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#c9a84c" opacity="0.8"/>
+    </marker>
+    <marker id="arrowhead-gold-hi" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#e8c86b"/>
+    </marker>
+    <marker id="arrowcircle" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <circle cx="3" cy="3" r="2.5" fill="#c9a84c" opacity="0.8"/>
+    </marker>
+  </defs>`;
+
+  relationships.forEach((rel, i) => {
+    const fromRect = getCardRect(rel.from);
+    const toRect   = getCardRect(rel.to);
+    if (!fromRect || !toRect) return;
+
+    const fy = getFieldY(rel.from, rel.fromField);
+    const ty = getFieldY(rel.to,   rel.toField);
+
+    const fromCenterX = fromRect.x + fromRect.w / 2;
+    const toCenterX   = toRect.x   + toRect.w   / 2;
+
+    let x1, x2, cp1x, cp1y, cp2x, cp2y;
+    if (fromCenterX < toCenterX) {
+      x1 = fromRect.x + fromRect.w;
+      x2 = toRect.x;
+    } else {
+      x1 = fromRect.x;
+      x2 = toRect.x + toRect.w;
+    }
+
+    const dx = Math.abs(x2 - x1);
+    const offset = Math.min(140, Math.max(40, dx * 0.5));
+    cp1x = x1 + (fromCenterX < toCenterX ? offset : -offset);
+    cp1y = fy;
+    cp2x = x2 + (fromCenterX < toCenterX ? -offset : offset);
+    cp2y = ty;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('class', `arrow-line fk`);
+    path.setAttribute('data-rel', i);
+    path.setAttribute('data-from', rel.from);
+    path.setAttribute('data-to',   rel.to);
+    path.setAttribute('d', `M${x1},${fy} C${cp1x},${cp1y} ${cp2x},${cp2y} ${x2},${ty}`);
+    path.setAttribute('marker-end',   'url(#arrowhead-gold)');
+    path.setAttribute('marker-start', 'url(#arrowcircle)');
+    svg.appendChild(path);
+  });
+}
+
+function highlightRelated(tname, on) {
+  svg.querySelectorAll('.arrow-line').forEach(p => {
+    const from = p.getAttribute('data-from');
+    const to   = p.getAttribute('data-to');
+    if (from === tname || to === tname) {
+      p.classList.toggle('highlighted', on);
+      p.setAttribute('marker-end', on ? 'url(#arrowhead-gold-hi)' : 'url(#arrowhead-gold)');
+    }
+  });
+  document.querySelectorAll('.table-card').forEach(c => {
+    const cn = c.id.replace('card-', '');
+    const related = relationships.some(r =>
+      (r.from === tname && r.to === cn) || (r.to === tname && r.from === cn)
+    );
+    c.classList.toggle('hovered', on && related);
+  });
+}
+
+// ── DRAG CARDS ───────────────────────────────────────────────
+function makeDraggable(el, tname) {
+  let startX, startY, startCardX, startCardY, dragging = false;
+
+  el.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest('select') || e.target.closest('input')) return;
+
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startCardX = positions[tname].x;
+    startCardY = positions[tname].y;
+    el.classList.add('dragging');
+    el.style.zIndex = 1000;
+    wrap.classList.add('no-select');
+    e.preventDefault();
+
+    const onMove = ev => {
+      if (!dragging) return;
+      const dx = (ev.clientX - startX) / zoomLevel;
+      const dy = (ev.clientY - startY) / zoomLevel;
+      positions[tname].x = startCardX + dx;
+      positions[tname].y = startCardY + dy;
+      el.style.left = positions[tname].x + 'px';
+      el.style.top  = positions[tname].y + 'px';
+      drawArrows();
+    };
+    const onUp = () => {
+      dragging = false;
+      el.classList.remove('dragging');
+      el.style.zIndex = '';
+      wrap.classList.remove('no-select');
+      saveState();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+// ── PAN CANVAS ───────────────────────────────────────────────
+let isPanning = false, panStartX, panStartY, panStartOffX, panStartOffY;
+
+wrap.addEventListener('mousedown', e => {
+  if (e.target !== wrap && e.target !== svg && e.target.tagName !== 'path') return;
+  if (e.button !== 0) return;
+  isPanning = true;
+  panStartX = e.clientX;
+  panStartY = e.clientY;
+  panStartOffX = panX;
+  panStartOffY = panY;
+  wrap.classList.add('no-select');
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  panX = panStartOffX + (e.clientX - panStartX);
+  panY = panStartOffY + (e.clientY - panStartY);
+  applyTransform();
+});
+document.addEventListener('mouseup', () => {
+  if (isPanning) { isPanning = false; wrap.classList.remove('no-select'); saveState(); }
+});
+
+// ── ZOOM ─────────────────────────────────────────────────────
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 0.08 : -0.08;
+  const newZoom = Math.min(2.5, Math.max(0.25, zoomLevel + delta));
+
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  panX = mx - (mx - panX) * (newZoom / zoomLevel);
+  panY = my - (my - panY) * (newZoom / zoomLevel);
+  zoomLevel = newZoom;
+  applyTransform();
+  saveState();
+}, { passive: false });
+
+function zoomIn()  { zoomLevel = Math.min(2.5, zoomLevel + 0.1); applyTransform(); saveState(); }
+function zoomOut() { zoomLevel = Math.max(0.25, zoomLevel - 0.1); applyTransform(); saveState(); }
+
+function applyTransform() {
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+  svg.style.transform    = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+  svg.style.transformOrigin = '0 0';
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+}
+
+function fitToScreen() {
+  const wrapRect = wrap.getBoundingClientRect();
+  const padding = 80;
+  const allX = Object.values(positions).map(p => p.x);
+  const allY = Object.values(positions).map(p => p.y);
+  const minX = Math.min(...allX) - padding;
+  const minY = Math.min(...allY) - padding;
+
+  const cards = document.querySelectorAll('.table-card');
+  let maxX = 0, maxY = 0;
+  cards.forEach(c => {
+    const tname = c.id.replace('card-', '');
+    maxX = Math.max(maxX, positions[tname].x + c.offsetWidth + padding);
+    maxY = Math.max(maxY, positions[tname].y + c.offsetHeight + padding);
+  });
+
+  const contentW = maxX - minX;
+  const contentH = maxY - minY;
+  const scaleX = wrapRect.width  / contentW;
+  const scaleY = wrapRect.height / contentH;
+  zoomLevel = Math.min(scaleX, scaleY, 1.1);
+  panX = -minX * zoomLevel + (wrapRect.width  - contentW * zoomLevel) / 2;
+  panY = -minY * zoomLevel + (wrapRect.height - contentH * zoomLevel) / 2;
+  applyTransform();
+  saveState();
+}
+
+function resetLayout() {
+  positions = deepClone(defaultPositions);
+  zoomLevel = 0.9; panX = 60; panY = 30;
+  document.querySelectorAll('.table-card').forEach(c => {
+    const tname = c.id.replace('card-', '');
+    c.style.left = positions[tname].x + 'px';
+    c.style.top  = positions[tname].y + 'px';
+  });
+  applyTransform();
+  drawArrows();
+  saveState();
+}
+
+function saveState() {
+  localStorage.setItem('er_positions', JSON.stringify(positions));
+  localStorage.setItem('er_zoom',      zoomLevel);
+  localStorage.setItem('er_panX',      panX);
+  localStorage.setItem('er_panY',      panY);
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+buildCards();
+applyTransform();
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    drawArrows();
+    fitToScreen();
+  });
+});
+</script>
+</body>
+</html>

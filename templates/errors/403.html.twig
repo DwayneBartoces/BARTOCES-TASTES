@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 - Access Denied | Bartoces Tastes</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0f0e0d;
+            --surface: #1a1917;
+            --surface2: #242220;
+            --border: #2e2b28;
+            --gold: #c9a84c;
+            --gold-light: #e8c86b;
+            --text: #f0ebe3;
+            --muted: #888075;
+            --red: #e05c5c;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .error-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 48px 36px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+        }
+        .icon-wrap {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            border-radius: 50%;
+            background: rgba(224, 92, 92, 0.12);
+            border: 1px solid rgba(224, 92, 92, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--red);
+            font-size: 36px;
+        }
+        .error-code {
+            font-family: 'Playfair Display', serif;
+            font-size: 42px;
+            color: var(--gold);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .error-title {
+            font-size: 20px;
+            color: var(--text);
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .error-desc {
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .role-notice {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: var(--gold-light);
+            margin-bottom: 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .actions-wrap {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 20px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .btn-gold {
+            background: linear-gradient(135deg, #c9a84c 0%, #b38f38 100%);
+            color: #111;
+            border: none;
+        }
+        .btn-gold:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="icon-wrap">
+            <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="error-code">403</div>
+        <div class="error-title">Access Denied (Forbidden)</div>
+        <div class="error-desc">
+            {{ message|default('You do not have permission to access this protected area. Administrator privileges are required to view and manage this resource.') }}
+        </div>
+        {% if user is defined and user %}
+        <div class="role-notice">
+            <i class="fa-solid fa-user-tag"></i>
+            <span>Signed in as: <strong>{{ user.name|default(user.username) }}</strong> (Role: <span style="text-transform:uppercase;">{{ user.role }}</span>)</span>
+        </div>
+        {% endif %}
+        <div class="actions-wrap">
+            {% if user is defined and user and user.role == 'staff' %}
+            <a href="{{ path('staff_dashboard') }}" class="btn btn-gold">
+                <i class="fa-solid fa-gauge-high"></i> Go to Staff Portal
+            </a>
+            {% else %}
+            <a href="{{ path('app_home') }}" class="btn btn-gold">
+                <i class="fa-solid fa-house"></i> Return to Home
+            </a>
+            {% endif %}
+            <a href="{{ path('app_logout') }}" class="btn btn-outline">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign In as Different User
+            </a>
+        </div>
+    </div>
+</body>
+</html>
+

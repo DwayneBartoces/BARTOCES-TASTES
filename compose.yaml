@@ -1,0 +1,41 @@
+services:
+  database:
+    image: mysql:8.0
+    container_name: webdev_b_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: webdev_b_db
+      MYSQL_USER: webdev
+      MYSQL_PASSWORD: webdev123
+    ports:
+      - "3307:3306"
+    volumes:
+      - webdev_b_db_data:/var/lib/mysql
+      - ./database/database.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - webdev_b_network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: webdev_b_phpmmyadmin
+    restart: unless-stopped
+    depends_on:
+      - database
+    environment:
+      PMA_HOST: database
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"
+    networks:
+      - webdev_b_network
+
+networks:
+  webdev_b_network:
+    name: webdev_b_network
+    external: true
+
+volumes:
+  webdev_b_db_data:
+    name: webdev_b_db_data
+    external: true

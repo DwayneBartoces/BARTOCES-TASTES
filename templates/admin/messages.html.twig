@@ -1,0 +1,98 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Inquiries & Messages - Bartoces Tastes (Symfony 6.4){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-comments"></i> Inquiries &amp; Customer Desk</h1>
+        <p>Review customer feedback, private event catering requests, and concierge inquiries.</p>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <a href="{{ path('admin_messages', {filter: 'all'}) }}" class="filter-tab {% if filter == 'all' %}active{% endif %}">
+        All Messages
+    </a>
+    <a href="{{ path('admin_messages', {filter: 'unread'}) }}" class="filter-tab {% if filter == 'unread' %}active{% endif %}">
+        <i class="fa-solid fa-envelope"></i> Unread Inquiries
+    </a>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <h2><i class="fa-solid fa-inbox" style="color:var(--gold); margin-right:8px;"></i> Customer Messages ({{ messages|length }})</h2>
+    </div>
+
+    {% if messages is empty %}
+        <div style="padding: 40px; text-align: center; color: var(--muted);">
+            <i class="fa-regular fa-envelope-open" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+            No inquiries found in this mailbox.
+        </div>
+    {% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Sender</th>
+                <th>Subject</th>
+                <th>Message Content</th>
+                <th>Received</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in messages %}
+            <tr>
+                <td>
+                    {% if m.is_read %}
+                        <span class="badge" style="background:var(--surface2); color:var(--muted);"><i class="fa-solid fa-envelope-open"></i> Read</span>
+                    {% else %}
+                        <span class="badge" style="background:rgba(201,168,76,0.2); color:var(--gold); font-weight:700;"><i class="fa-solid fa-envelope"></i> New</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <strong>{{ m.name }}</strong>
+                    <div style="font-size:11.5px; color:var(--muted);">
+                        <a href="mailto:{{ m.email }}" style="color:var(--gold); text-decoration:none;"><i class="fa-solid fa-envelope"></i> {{ m.email }}</a>
+                    </div>
+                </td>
+                <td>
+                    <span style="font-weight:600; color:var(--text);">{{ m.subject|default('General Inquiry') }}</span>
+                </td>
+                <td>
+                    <div style="max-width:320px; font-size:12.5px; color:var(--muted); line-height:1.5;">
+                        {{ m.message }}
+                    </div>
+                </td>
+                <td>
+                    <small style="color:var(--muted);">{{ m.created_at|date('M d, Y h:i A') }}</small>
+                </td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        {% if not m.is_read %}
+                        <form method="POST" action="{{ path('admin_message_read', {id: m.id}) }}" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-secondary btn-sm" title="Mark as Read">
+                                <i class="fa-solid fa-check"></i> Read
+                            </button>
+                        </form>
+                        {% endif %}
+                        <a href="mailto:{{ m.email }}?subject=RE: {{ m.subject|url_encode }}" class="btn-primary btn-sm" title="Send Email Reply">
+                            <i class="fa-solid fa-reply"></i> Reply
+                        </a>
+                        <form method="POST" action="{{ path('admin_message_delete', {id: m.id}) }}" onsubmit="return confirm('Delete message from {{ m.name }}?');" style="display:inline;">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-danger btn-sm" title="Delete Message">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

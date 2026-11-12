@@ -1,0 +1,246 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Bartoces Tastes Est. 2026</title>
+    <meta name="description" content="Sign in to your Bartoces Tastes account to place orders, make table reservations, or access the admin management portal.">
+
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+
+    <div class="login-bg"></div>
+    <div class="login-overlay"></div>
+
+    <div class="login-wrapper">
+        <div class="login-card">
+
+            
+            <div class="login-brand">
+                <a href="{{ path('app_home') }}">
+                    <img src="images/logo.png" alt="BARTOCES TASTES Logo" class="login-logo">
+                </a>
+                <h1 id="brandTitle">WELCOME TO BARTOCES TASTES</h1>
+                <p id="brandSubtitle">Sign in to your account</p>
+            </div>
+
+            
+            {% if error is not empty %}
+            <div class="auth-alert auth-alert-error" role="alert" id="phpAlert">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+            {% if success is not empty %}
+            <div class="auth-alert auth-alert-success" role="alert">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>{{ success }}</span>
+            </div>
+            {% endif %}
+
+            
+            <div class="auth-alert" id="authAlert" role="alert" style="display:none;">
+                <i class="fa-solid fa-circle-exclamation" id="alertIcon"></i>
+                <span id="alertMessage"></span>
+            </div>
+
+            
+            <form id="signInForm" class="auth-form" method="POST" action="{{ path('app_login') }}">
+                <input type="hidden" name="action" value="login">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+                <div class="form-group">
+                    <label for="loginIdentifier">Username or Email</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-user field-icon"></i>
+                        <input type="text" id="loginIdentifier" name="identifier"
+                               placeholder="e.g. user, admin, or your email" required autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-lock field-icon"></i>
+                        <input type="password" id="loginPassword" name="password"
+                               placeholder="Enter your password" required autocomplete="current-password">
+                        <button type="button" class="btn-toggle-pwd" id="toggleLoginPwd" aria-label="Toggle password visibility">
+                            <i class="fa-regular fa-eye" id="loginEyeIcon"></i>
+                        </button>
+                    </div>
+                    <div class="forgot-pwd-wrap">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-auth-submit" id="btnSubmitAuth">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    <span id="submitBtnText">SIGN IN</span>
+                </button>
+            </form>
+
+            
+            <form id="signUpForm" class="auth-form" method="POST" action="{{ path('app_login') }}" style="display: none;">
+                <input type="hidden" name="action" value="register">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+                <div class="form-group">
+                    <label for="regName">Full Name</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-id-badge field-icon"></i>
+                        <input type="text" id="regName" name="name" placeholder="e.g. Juan Dela Cruz" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="regEmail">Email Address</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-envelope field-icon"></i>
+                        <input type="email" id="regEmail" name="email" placeholder="e.g. juan@example.com" required autocomplete="email">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="regUsername">Username</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-user field-icon"></i>
+                        <input type="text" id="regUsername" name="username" placeholder="Choose a username" required autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="regPhone">Mobile Phone (Optional)</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-phone field-icon"></i>
+                        <input type="tel" id="regPhone" name="phone" placeholder="0912 345 6789">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-lock field-icon"></i>
+                        <input type="password" id="regPassword" name="password"
+                               placeholder="Minimum 6 characters" required autocomplete="new-password">
+                        <button type="button" class="btn-toggle-pwd" id="toggleRegPwd" aria-label="Toggle password visibility">
+                            <i class="fa-regular fa-eye" id="regEyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirm Password</label>
+                    <div class="input-with-icon">
+                        <i class="fa-regular fa-lock field-icon"></i>
+                        <input type="password" id="regConfirmPassword" name="confirm_password"
+                               placeholder="Re-enter password" required autocomplete="new-password">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-auth-submit">
+                    <i class="fa-solid fa-user-plus"></i> CREATE ACCOUNT &amp; DINE
+                </button>
+            </form>
+
+            
+            <div class="auth-toggle-mode">
+                <span id="toggleModeText">Don't have an account yet?</span>
+                <a id="toggleModeLink" style="cursor:pointer;">Create Account</a>
+            </div>
+
+            <div style="text-align: center; margin-top: 16px;">
+                <a href="{{ path('app_home') }}" style="color: var(--muted); font-size: 13px; text-decoration: none;">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Homepage
+                </a>
+            </div>
+
+        </div>
+
+        <p class="login-footer-note">© 2026 BARTOCES TASTES • Fine Casual Dining &amp; Authentic Flavors</p>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let isSignUpMode = false;
+
+        const signInForm      = document.getElementById('signInForm');
+        const signUpForm      = document.getElementById('signUpForm');
+        const authAlert       = document.getElementById('authAlert');
+        const alertMessage    = document.getElementById('alertMessage');
+        const brandSubtitle   = document.getElementById('brandSubtitle');
+        const submitBtnText   = document.getElementById('submitBtnText');
+        const toggleModeText  = document.getElementById('toggleModeText');
+        const toggleModeLink  = document.getElementById('toggleModeLink');
+        const toggleLoginPwd  = document.getElementById('toggleLoginPwd');
+        const loginPassword   = document.getElementById('loginPassword');
+        const loginEyeIcon    = document.getElementById('loginEyeIcon');
+        const toggleRegPwd    = document.getElementById('toggleRegPwd');
+        const regPassword     = document.getElementById('regPassword');
+        const regEyeIcon      = document.getElementById('regEyeIcon');
+
+        const phpAlert = document.getElementById('phpAlert');
+        if (phpAlert) {
+            authAlert.style.display = 'none';
+        }
+
+        function showJsAlert(msg, type = 'error') {
+            authAlert.style.display = 'flex';
+            authAlert.className     = 'auth-alert ' + (type === 'success' ? 'auth-alert-success' : 'auth-alert-error');
+            alertMessage.textContent = msg;
+        }
+
+        function hideJsAlert() {
+            authAlert.style.display = 'none';
+        }
+
+        function toggleMode() {
+            isSignUpMode = !isSignUpMode;
+            hideJsAlert();
+
+            if (isSignUpMode) {
+                signInForm.style.display  = 'none';
+                signUpForm.style.display  = 'block';
+                toggleModeText.textContent = 'Already have an account?';
+                toggleModeLink.textContent = 'Sign In';
+                brandSubtitle.textContent  = 'Create a new customer account to start ordering';
+                submitBtnText.textContent  = 'CREATE ACCOUNT';
+            } else {
+                signInForm.style.display  = 'block';
+                signUpForm.style.display  = 'none';
+                toggleModeText.textContent = "Don't have an account yet?";
+                toggleModeLink.textContent = 'Create Account';
+                brandSubtitle.textContent  = 'Sign in to your account';
+                submitBtnText.textContent  = 'SIGN IN';
+            }
+        }
+
+        toggleModeLink.addEventListener('click', toggleMode);
+
+        toggleLoginPwd.addEventListener('click', () => {
+            const isText = loginPassword.type === 'text';
+            loginPassword.type   = isText ? 'password' : 'text';
+            loginEyeIcon.className = isText ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
+        });
+
+        if (toggleRegPwd) {
+            toggleRegPwd.addEventListener('click', () => {
+                const isText = regPassword.type === 'text';
+                regPassword.type   = isText ? 'password' : 'text';
+                regEyeIcon.className = isText ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
+            });
+        }
+    });
+    </script>
+
+</body>
+</html>

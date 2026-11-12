@@ -1,12 +1,27 @@
 <?php
-require_once 'includes/config.php';
-session_start();
 
-// Allow guest browsing; require login only for ordering
-$currentUser = $_SESSION['user'] ?? null;
-$pageTitle   = 'Bartoces Tastes - Est. 2026 | Authentic Culinary Excellence';
-$appName     = 'BARTOCES TASTES';
-$estYear     = 2026;
+// Canonical URL cleanup: redirect /index.php to /
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+if (strpos($requestUri, 'index.php') !== false) {
+    $cleanUri = preg_replace('#/index\.php(\?.*)?$#i', '/$1', $requestUri);
+    if ($cleanUri === '') {
+        $cleanUri = '/';
+    }
+    header('Location: ' . $cleanUri, true, 301);
+    exit;
+}
+
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/src/Service/DatabaseService.php';
+
+use App\Service\DatabaseService;
+
+$db = new DatabaseService();
+$currentUser  = $_SESSION['user'] ?? null;
+$allMenuItems = $db->getActiveMenuItems();
+$dbSource     = $db->getDbSource();
+$appName      = 'BARTOCES TASTES';
+$estYear      = 2026;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -31,30 +46,45 @@ $estYear     = 2026;
     <!-- Stylesheet -->
     <link rel="stylesheet" href="css/style.css?v=<?php echo time(); ?>">
 
-    <!-- PHP SESSION USER DATA (injected server-side for JS UI) -->
+    <!-- SYMFONY SERVER-SIDE DATA INJECTION (FROM DOCKER MYSQL) -->
     <script>
         window.BARTOCES_SESSION = <?php echo json_encode([
             'loggedIn' => !empty($currentUser),
             'user'     => $currentUser
         ]); ?>;
+        window.BARTOCES_MENU = <?php echo json_encode($allMenuItems); ?>;
     </script>
 </head>
 
 <body>
 
-    <!-- ADMIN MANAGEMENT TOP BAR (Visible only for Administrator role) -->
+    <!-- ADMIN / STAFF MANAGEMENT TOP BAR -->
     <?php if (!empty($currentUser) && $currentUser['role'] === 'admin'): ?>
     <div id="adminTopBar" class="admin-top-bar">
         <div class="admin-bar-inner">
             <div class="admin-status">
-                <span class="admin-shield"><i class="fa-solid fa-shield-halved"></i> ADMIN PORTAL ACTIVE</span>
+                <span class="admin-shield"><i class="fa-solid fa-shield-halved"></i> SYMFONY ADMIN ACTIVE</span>
                 <span class="admin-pill" id="adminUserPill"><?php echo htmlspecialchars($currentUser['name']); ?> (Administrator)</span>
             </div>
             <div class="admin-quick-stats">
                 <span class="admin-metric"><i class="fa-solid fa-bag-shopping"></i> Total Orders: <strong id="adminOrderCounter">—</strong></span>
                 <span class="admin-metric"><i class="fa-solid fa-calendar-check"></i> Reservations: <strong id="adminResCounter">—</strong></span>
-                <a href="admin.php" class="btn-clear-demo" title="View Admin Dashboard">
-                    <i class="fa-solid fa-gauge-high"></i> Admin Dashboard
+                <a href="admin.php" class="btn-clear-demo" title="Open Symfony Admin Portal">
+                    <i class="fa-solid fa-gauge-high"></i> Symfony Admin Portal
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php elseif (!empty($currentUser) && $currentUser['role'] === 'staff'): ?>
+    <div id="adminTopBar" class="admin-top-bar" style="border-bottom-color: rgba(91,155,213,0.4); background: rgba(18,24,34,0.96);">
+        <div class="admin-bar-inner">
+            <div class="admin-status">
+                <span class="admin-shield" style="color:var(--blue);"><i class="fa-solid fa-kitchen-set"></i> RESTAURANT STAFF ACTIVE</span>
+                <span class="admin-pill" id="adminUserPill" style="border-color:rgba(91,155,213,0.3);"><?php echo htmlspecialchars($currentUser['name']); ?> (Staff)</span>
+            </div>
+            <div class="admin-quick-stats">
+                <a href="staff.php" class="btn-clear-demo" style="border-color:rgba(91,155,213,0.4); color:var(--blue);" title="Open Staff Management Portal">
+                    <i class="fa-solid fa-gauge-high"></i> Staff Management Portal
                 </a>
             </div>
         </div>
@@ -88,7 +118,17 @@ $estYear     = 2026;
                 </div>
                 <div class="user-meta">
                     <span class="user-display-name" id="userNameDisplay"><?php echo htmlspecialchars($currentUser['name']); ?></span>
-                    <span class="user-role-label" id="userRoleLabel"><?php echo $currentUser['role'] === 'admin' ? 'Administrator' : 'Customer'; ?></span>
+                    <span class="user-role-label" id="userRoleLabel">
+                        <?php 
+                        if ($currentUser['role'] === 'admin') {
+                            echo 'Administrator';
+                        } elseif ($currentUser['role'] === 'staff') {
+                            echo 'Staff';
+                        } else {
+                            echo 'Customer';
+                        }
+                        ?>
+                    </span>
                 </div>
                 <a href="logout.php" class="header-logout-btn" id="headerLogoutBtn" title="Sign Out">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -119,7 +159,6 @@ $estYear     = 2026;
             </button>
         </div>
     </header>
-
 
     <!-- HERO SECTION -->
     <section class="hero" id="home">
@@ -156,7 +195,6 @@ $estYear     = 2026;
         </div>
     </section>
 
-
     <!-- BEST SELLERS -->
     <section class="best-sellers" id="best-sellers">
         <div class="section-title">
@@ -165,94 +203,60 @@ $estYear     = 2026;
         </div>
 
         <div class="products" id="bestSellersContainer">
-            <!-- Product 1: Chicken Inasal -->
-            <div class="product-card" data-id="1" data-name="Chicken Inasal" data-price="249" data-category="classics"
-                data-image="images/chicken-inasal.jpg">
+            <?php 
+            $bestSellers = array_filter($allMenuItems, function($item) {
+                $badge = strtolower($item['badge'] ?? '');
+                return in_array($badge, ['bestseller', 'signature', 'hot and sizzling', 'hot & sizzling', 'chef choice', "chef's pick", 'popular', 'specialty']);
+            });
+            if (empty($bestSellers)) {
+                $bestSellers = array_slice($allMenuItems, 0, 4);
+            } else {
+                $bestSellers = array_slice($bestSellers, 0, 8);
+            }
+            foreach ($bestSellers as $item): 
+                $itemId   = (int)$item['id'];
+                $name     = htmlspecialchars($item['name']);
+                $price    = number_format((float)$item['price'], 0);
+                $cat      = htmlspecialchars($item['category']);
+                $img      = htmlspecialchars(!empty($item['image']) ? $item['image'] : 'images/chef.png');
+                $badge    = htmlspecialchars($item['badge'] ?? '');
+                $desc     = htmlspecialchars($item['description'] ?? '');
+                $stockVal = (int)($item['stock'] ?? 0);
+                $thresh   = (int)($item['low_stock_threshold'] ?? 5);
+                $isOut    = $stockVal <= 0;
+            ?>
+            <div class="product-card" data-id="<?php echo $itemId; ?>" data-name="<?php echo $name; ?>" data-price="<?php echo (float)$item['price']; ?>" data-category="<?php echo $cat; ?>" data-image="<?php echo $img; ?>" data-desc="<?php echo $desc; ?>" data-stock="<?php echo $stockVal; ?>">
                 <div class="card-image-wrap">
-                    <img src="images/chicken-inasal.jpg" alt="Chicken Inasal" loading="lazy">
-                    <span class="badge-tag">Bestseller</span>
-                    <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Chicken Inasal">
+                    <img src="<?php echo $img; ?>" alt="<?php echo $name; ?>" loading="lazy" onerror="this.src='images/chef.png'">
+                    <?php if ($isOut): ?>
+                    <span class="badge-tag" style="background:#dc2626;color:#fff;">Out of Stock</span>
+                    <?php elseif (!empty($badge)): ?>
+                    <span class="badge-tag"><?php echo $badge; ?></span>
+                    <?php endif; ?>
+                    <button class="quick-view-btn" data-action="quickview" aria-label="Quick View <?php echo $name; ?>">
                         <i class="fa-regular fa-eye"></i> Quick View
                     </button>
                 </div>
                 <div class="product-info">
-                    <h3>Chicken Inasal</h3>
-                    <p class="price">₱249</p>
+                    <h3><?php echo $name; ?></h3>
+                    <p class="price">₱<?php echo $price; ?></p>
+                    <?php if (!$isOut && $stockVal <= $thresh): ?>
+                    <small style="color:#d97706;font-weight:600;font-size:11px;"><i class="fa-solid fa-triangle-exclamation"></i> Only <?php echo $stockVal; ?> left in stock</small>
+                    <?php endif; ?>
                     <div class="stars">★★★★★ <span class="rating-num">(4.9)</span></div>
-                    <p class="item-desc">Achiote-marinated grilled chicken thigh served with garlic rice & calamansi
-                        dip.</p>
-                    <button class="btn-add-cart" data-action="add-to-cart">
+                    <p class="item-desc"><?php echo $desc; ?></p>
+                    <button class="btn-add-cart" data-action="add-to-cart" <?php if ($isOut): ?>style="background:#6b7280;cursor:not-allowed;"<?php endif; ?>>
+                        <?php if ($isOut): ?>
+                        <i class="fa-solid fa-ban"></i> Out of Stock
+                        <?php else: ?>
                         <i class="fa-solid fa-plus"></i> Add to Order
+                        <?php endif; ?>
                     </button>
                 </div>
             </div>
-
-            <!-- Product 2: Beef Steak -->
-            <div class="product-card" data-id="2" data-name="Beef Steak" data-price="399" data-category="classics"
-                data-image="images/beef-steak.jpg">
-                <div class="card-image-wrap">
-                    <img src="images/beef-steak.jpg" alt="Beef Steak" loading="lazy">
-                    <span class="badge-tag">Signature</span>
-                    <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Beef Steak">
-                        <i class="fa-regular fa-eye"></i> Quick View
-                    </button>
-                </div>
-                <div class="product-info">
-                    <h3>Beef Steak</h3>
-                    <p class="price">₱399</p>
-                    <div class="stars">★★★★★ <span class="rating-num">(5.0)</span></div>
-                    <p class="item-desc">Tender ribeye slices simmered in citrus soy glaze and caramelized onions.</p>
-                    <button class="btn-add-cart" data-action="add-to-cart">
-                        <i class="fa-solid fa-plus"></i> Add to Order
-                    </button>
-                </div>
-            </div>
-
-            <!-- Product 3: Pork Sisig -->
-            <div class="product-card" data-id="3" data-name="Pork Sisig" data-price="199" data-category="classics"
-                data-image="images/pork-sisig.jpg">
-                <div class="card-image-wrap">
-                    <img src="images/pork-sisig.jpg" alt="Pork Sisig" loading="lazy">
-                    <span class="badge-tag">Hot & Sizzling</span>
-                    <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Pork Sisig">
-                        <i class="fa-regular fa-eye"></i> Quick View
-                    </button>
-                </div>
-                <div class="product-info">
-                    <h3>Pork Sisig</h3>
-                    <p class="price">₱199</p>
-                    <div class="stars">★★★★★ <span class="rating-num">(4.8)</span></div>
-                    <p class="item-desc">Crispy diced pork belly served sizzling with fresh egg, chili, and calamansi.
-                    </p>
-                    <button class="btn-add-cart" data-action="add-to-cart">
-                        <i class="fa-solid fa-plus"></i> Add to Order
-                    </button>
-                </div>
-            </div>
-
-            <!-- Product 4: Creamy Carbonara -->
-            <div class="product-card" data-id="4" data-name="Creamy Carbonara" data-price="250" data-category="pasta"
-                data-image="images/carbonara.jpg">
-                <div class="card-image-wrap">
-                    <img src="images/carbonara.jpg" alt="Creamy Carbonara" loading="lazy">
-                    <span class="badge-tag">Chef Choice</span>
-                    <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Creamy Carbonara">
-                        <i class="fa-regular fa-eye"></i> Quick View
-                    </button>
-                </div>
-                <div class="product-info">
-                    <h3>Creamy Carbonara</h3>
-                    <p class="price">₱250</p>
-                    <div class="stars">★★★★★ <span class="rating-num">(4.9)</span></div>
-                    <p class="item-desc">Al dente pasta tossed in rich parmesan egg sauce with crispy smoked bacon.</p>
-                    <button class="btn-add-cart" data-action="add-to-cart">
-                        <i class="fa-solid fa-plus"></i> Add to Order
-                    </button>
-                </div>
-            </div>
+            <?php endforeach; ?>
         </div>
     </section>
-
 
     <!-- STATISTICS -->
     <section class="statistics" id="statistics">
@@ -278,7 +282,6 @@ $estYear     = 2026;
         </div>
     </section>
 
-
     <!-- MENU SECTION -->
     <section class="menu-section" id="menu">
         <div class="section-title">
@@ -296,235 +299,52 @@ $estYear     = 2026;
 
         <div class="menu-container">
             <div class="menu-items" id="menuItemsGrid">
-                <!-- Burger Card -->
-                <div class="menu-card" data-id="5" data-name="Gourmet Burger" data-price="120" data-category="fastfood"
-                    data-image="images/burger.jpg">
+                <?php if (empty($allMenuItems)): ?>
+                <p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">No menu items available at the moment.</p>
+                <?php else: ?>
+                <?php foreach ($allMenuItems as $item): 
+                    $itemId   = (int)$item['id'];
+                    $name     = htmlspecialchars($item['name']);
+                    $price    = number_format((float)$item['price'], 0);
+                    $cat      = htmlspecialchars($item['category']);
+                    $img      = htmlspecialchars(!empty($item['image']) ? $item['image'] : 'images/chef.png');
+                    $badge    = htmlspecialchars($item['badge'] ?? '');
+                    $desc     = htmlspecialchars($item['description'] ?? '');
+                    $stockVal = (int)($item['stock'] ?? 0);
+                    $thresh   = (int)($item['low_stock_threshold'] ?? 5);
+                    $isOut    = $stockVal <= 0;
+                ?>
+                <div class="menu-card" data-id="<?php echo $itemId; ?>" data-name="<?php echo $name; ?>" data-price="<?php echo (float)$item['price']; ?>" data-category="<?php echo $cat; ?>" data-image="<?php echo $img; ?>" data-desc="<?php echo $desc; ?>" data-stock="<?php echo $stockVal; ?>">
                     <div class="card-image-wrap">
-                        <img src="images/burger.jpg" alt="Burger" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Burger">
+                        <img src="<?php echo $img; ?>" alt="<?php echo $name; ?>" loading="lazy" onerror="this.src='images/chef.png'">
+                        <?php if ($isOut): ?>
+                        <span class="badge-tag" style="background:#dc2626;color:#fff;">Out of Stock</span>
+                        <?php elseif (!empty($badge)): ?>
+                        <span class="badge-tag"><?php echo $badge; ?></span>
+                        <?php endif; ?>
+                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View <?php echo $name; ?>">
                             <i class="fa-regular fa-eye"></i> View
                         </button>
                     </div>
                     <div class="menu-card-body">
-                        <h3>BURGER</h3>
-                        <p class="price">₱120</p>
+                        <h3><?php echo strtoupper($name); ?></h3>
+                        <p class="price">₱<?php echo $price; ?></p>
+                        <?php if (!$isOut && $stockVal <= $thresh): ?>
+                        <small style="color:#d97706;font-weight:600;font-size:11px;"><i class="fa-solid fa-triangle-exclamation"></i> Only <?php echo $stockVal; ?> left</small>
+                        <?php endif; ?>
                         <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
+                        <button class="btn-card-order" data-action="add-to-cart" <?php if ($isOut): ?>style="background:#6b7280;cursor:not-allowed;"<?php endif; ?>>
+                            <?php if ($isOut): ?>
+                            <i class="fa-solid fa-ban"></i> Out of Stock
+                            <?php else: ?>
                             <i class="fa-solid fa-cart-plus"></i> Order
+                            <?php endif; ?>
                         </button>
                     </div>
                 </div>
-
-                <!-- Fries Card -->
-                <div class="menu-card" data-id="6" data-name="Crispy Fries" data-price="99" data-category="fastfood"
-                    data-image="images/fries.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/fries.jpg" alt="Fries" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Fries">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>FRIES</h3>
-                        <p class="price">₱99</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Pizza Card -->
-                <div class="menu-card" data-id="7" data-name="Artisan Pizza" data-price="300" data-category="pasta"
-                    data-image="images/pizza.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/pizza.jpg" alt="Pizza" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Pizza">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>PIZZA</h3>
-                        <p class="price">₱300</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Bacon Cheeseburger Card -->
-                <div class="menu-card" data-id="9" data-name="Bacon Cheeseburger" data-price="180" data-category="fastfood"
-                    data-image="images/bacon-cheeseburger.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/bacon-cheeseburger.jpg" alt="Bacon Cheeseburger" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Bacon Cheeseburger">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>BACON CHEESEBURGER</h3>
-                        <p class="price">₱180</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Mushroom Swiss Burger Card -->
-                <div class="menu-card" data-id="10" data-name="Mushroom Swiss Burger" data-price="185" data-category="fastfood"
-                    data-image="images/mushroom-swiss-burger.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/mushroom-swiss-burger.jpg" alt="Mushroom Swiss Burger" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Mushroom Swiss Burger">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>MUSHROOM SWISS</h3>
-                        <p class="price">₱185</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Spicy Chicken Burger Card -->
-                <div class="menu-card" data-id="11" data-name="Spicy Chicken Burger" data-price="160" data-category="fastfood"
-                    data-image="images/spicy-chicken-burger.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/spicy-chicken-burger.jpg" alt="Spicy Chicken Burger" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Spicy Chicken Burger">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>SPICY CHICKEN</h3>
-                        <p class="price">₱160</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Spicy Arrabbiata Card -->
-                <div class="menu-card" data-id="12" data-name="Spicy Arrabbiata" data-price="220" data-category="pasta"
-                    data-image="images/spicy-arrabbiata.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/spicy-arrabbiata.jpg" alt="Spicy Arrabbiata" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Spicy Arrabbiata">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>SPICY ARRABBIATA</h3>
-                        <p class="price">₱220</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Mushroom Alfredo Card -->
-                <div class="menu-card" data-id="13" data-name="Mushroom Alfredo" data-price="240" data-category="pasta"
-                    data-image="images/mushroom-alfredo.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/mushroom-alfredo.jpg" alt="Mushroom Alfredo" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Mushroom Alfredo">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>MUSHROOM ALFREDO</h3>
-                        <p class="price">₱240</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Seafood Linguine Card -->
-                <div class="menu-card" data-id="14" data-name="Seafood Linguine" data-price="280" data-category="pasta"
-                    data-image="images/seafood-linguine.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/seafood-linguine.jpg" alt="Seafood Linguine" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Seafood Linguine">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>SEAFOOD LINGUINE</h3>
-                        <p class="price">₱280</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Beef Teriyaki Bowl Card -->
-                <div class="menu-card" data-id="15" data-name="Beef Teriyaki Bowl" data-price="220" data-category="classics"
-                    data-image="images/beef-teriyaki.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/beef-teriyaki.jpg" alt="Beef Teriyaki Bowl" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Beef Teriyaki Bowl">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>BEEF TERIYAKI</h3>
-                        <p class="price">₱220</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Chicken Teriyaki Card -->
-                <div class="menu-card" data-id="16" data-name="Chicken Teriyaki" data-price="195" data-category="classics"
-                    data-image="images/chicken-teriyaki.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/chicken-teriyaki.jpg" alt="Chicken Teriyaki" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Chicken Teriyaki">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>CHICKEN TERIYAKI</h3>
-                        <p class="price">₱195</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Vegetable Stir Fry Card -->
-                <div class="menu-card" data-id="17" data-name="Vegetable Stir Fry" data-price="175" data-category="classics"
-                    data-image="images/vegetable-stir-fry.jpg">
-                    <div class="card-image-wrap">
-                        <img src="images/vegetable-stir-fry.jpg" alt="Vegetable Stir Fry" loading="lazy">
-                        <button class="quick-view-btn" data-action="quickview" aria-label="Quick View Vegetable Stir Fry">
-                            <i class="fa-regular fa-eye"></i> View
-                        </button>
-                    </div>
-                    <div class="menu-card-body">
-                        <h3>VEGETABLE STIR FRY</h3>
-                        <p class="price">₱175</p>
-                        <div class="stars">★★★★★</div>
-                        <button class="btn-card-order" data-action="add-to-cart">
-                            <i class="fa-solid fa-cart-plus"></i> Order
-                        </button>
-                    </div>
-                </div>
+                <?php endforeach; ?>
+                <?php endif; ?>
             </div>
-
 
             <!-- FEATURED FOOD (CHEF'S RECOMMENDATION) -->
             <div class="featured-food" id="featuredFoodCard" data-id="8" data-name="Grilled Chicken Inasal"
@@ -566,7 +386,6 @@ $estYear     = 2026;
         </div>
     </section>
 
-
     <!-- OUR STORY -->
     <section class="story-section" id="about">
         <div class="story-image">
@@ -605,7 +424,6 @@ $estYear     = 2026;
             </div>
         </div>
     </section>
-
 
     <!-- TESTIMONIALS -->
     <section class="testimonials" id="testimonials">
@@ -653,7 +471,6 @@ $estYear     = 2026;
         </div>
     </section>
 
-
     <!-- TEAM -->
     <section class="team" id="team">
         <div class="team-title-wrap">
@@ -679,7 +496,6 @@ $estYear     = 2026;
             </div>
         </div>
     </section>
-
 
     <!-- FOOTER -->
     <footer class="footer" id="contact">
@@ -747,16 +563,15 @@ $estYear     = 2026;
                 <i class="fa-solid fa-location-dot"></i>
                 <span>Main St., Culinary Plaza, 2026</span>
             </p>
-            <span class="footer-contact-badge">
+            <button class="footer-contact-badge" id="openContactModalBtn">
                 <i class="fa-regular fa-paper-plane"></i> Send a Message
-            </span>
+            </button>
         </div>
     </footer>
 
     <div class="footer-bottom">
-        <p>© 2026 Bartoces Tastes. All Rights Reserved. Designed with Passion & Quality.</p>
+        <p>© 2026 Bartoces Tastes. All Rights Reserved. Powered by Symfony 6.4 & Docker MySQL.</p>
     </div>
-
 
     <!-- ==============================================
          MODALS & SLIDE-OUT DRAWERS
@@ -799,7 +614,7 @@ $estYear     = 2026;
         <!-- CART FOOTER & CHECKOUT -->
         <div class="cart-footer" id="cartFooter">
             <div class="order-type-dynamic-fields" id="orderTypeFields">
-                <!-- Injected dynamically based on type (Table # for Dine in, Address for delivery) -->
+                <!-- Injected dynamically based on type -->
             </div>
 
             <div class="cart-special-notes">
@@ -827,15 +642,8 @@ $estYear     = 2026;
                 <div class="form-group">
                     <input type="text" id="custName" placeholder="Your Full Name *" required>
                 </div>
-                <div class="form-group" id="phoneGroup" style="display: none;">
-                    <input type="tel" id="custPhone" placeholder="Mobile Number (09XXXXXXXXX) *">
-                </div>
                 <div class="form-group" id="deliveryAddressGroup" style="display: none;">
                     <textarea id="custAddress" placeholder="Delivery Street Address & Landmarks *" rows="2"></textarea>
-                </div>
-                <div class="form-group" id="tableNumberGroup">
-                    <input type="number" id="custTable" placeholder="Table Number (Optional if already seated)" min="1"
-                        max="50">
                 </div>
 
                 <div class="payment-method-box">
@@ -856,13 +664,38 @@ $estYear     = 2026;
                     </div>
                 </div>
 
+                <!-- CARD DETAILS -->
+                <div id="cardDetailsGroup" class="payment-details-box" style="display: none;">
+                    <div class="form-group">
+                        <label class="field-micro-label"><i class="fa-solid fa-credit-card"></i> Card Number *</label>
+                        <input type="text" id="custCard" placeholder="1234 5678 9012 3456" inputmode="numeric" pattern="[0-9 ]*" maxlength="19" autocomplete="cc-number">
+                    </div>
+                    <div class="form-row-split">
+                        <div class="form-group">
+                            <label class="field-micro-label"><i class="fa-solid fa-calendar-days"></i> Expiry (MM/YY) *</label>
+                            <input type="text" id="custCardExp" placeholder="MM/YY" inputmode="numeric" maxlength="5" autocomplete="cc-exp">
+                        </div>
+                        <div class="form-group">
+                            <label class="field-micro-label"><i class="fa-solid fa-lock"></i> CVV / CVC *</label>
+                            <input type="password" id="custCardCvv" placeholder="123" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="cc-csc">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GCASH DETAILS -->
+                <div id="gcashDetailsGroup" class="payment-details-box" style="display: none;">
+                    <div class="form-group">
+                        <label class="field-micro-label"><i class="fa-solid fa-mobile-screen-button"></i> GCash Mobile Number *</label>
+                        <input type="tel" id="custGcashPhone" placeholder="09XXXXXXXXX" inputmode="numeric" maxlength="11">
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-confirm-order" id="btnConfirmOrder">
                     <i class="fa-solid fa-lock"></i> PLACE ORDER NOW
                 </button>
             </form>
         </div>
     </aside>
-
 
     <!-- 2. ORDER RECEIPT CONFIRMATION MODAL -->
     <div id="receiptModal" class="custom-modal" role="dialog" aria-modal="true">
@@ -892,7 +725,6 @@ $estYear     = 2026;
             </div>
         </div>
     </div>
-
 
     <!-- 3. TABLE RESERVATION MODAL -->
     <div id="reservationModal" class="custom-modal" role="dialog" aria-modal="true">
@@ -971,7 +803,6 @@ $estYear     = 2026;
         </div>
     </div>
 
-
     <!-- 4. FOOD ITEM QUICK VIEW MODAL -->
     <div id="quickViewModal" class="custom-modal" role="dialog" aria-modal="true">
         <div class="modal-card quick-view-card">
@@ -1023,7 +854,6 @@ $estYear     = 2026;
         </div>
     </div>
 
-
     <!-- 5. CONTACT US MODAL -->
     <div id="contactModal" class="custom-modal" role="dialog" aria-modal="true">
         <div class="modal-card">
@@ -1062,7 +892,6 @@ $estYear     = 2026;
             </form>
         </div>
     </div>
-
 
     <!-- JAVASCRIPT LOGIC -->
     <script src="js/script.js?v=<?php echo time(); ?>"></script>

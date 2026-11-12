@@ -1,0 +1,170 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin Dashboard - Bartoces Tastes (Symfony 6.4){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-gauge-high"></i> Executive Dashboard</h1>
+        <p>Real-time dining metrics, sales analytics, and operational management for Bartoces Tastes.</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <a href="{{ path('admin_orders') }}" class="btn-primary btn-sm">
+            <i class="fa-solid fa-bag-shopping"></i> View Orders
+        </a>
+    </div>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 24px;">
+    <div class="stat-card" style="border: 1px solid rgba(201,168,76,0.4); background: linear-gradient(145deg, var(--surface) 0%, rgba(201,168,76,0.08) 100%);">
+        <div class="stat-icon icon-gold">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_users }}</h3>
+            <p><strong style="color:var(--gold-light);">Total Users</strong> (Registered Diners)</p>
+        </div>
+    </div>
+
+    <div class="stat-card" style="border: 1px solid rgba(91,155,213,0.4); background: linear-gradient(145deg, var(--surface) 0%, rgba(91,155,213,0.08) 100%);">
+        <div class="stat-icon icon-blue">
+            <i class="fa-solid fa-user-tie"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_staff }}</h3>
+            <p><strong style="color:var(--blue);">Total Staff</strong> (Active Team)</p>
+        </div>
+    </div>
+
+    <div class="stat-card" style="border: 1px solid rgba(92,184,92,0.4); background: linear-gradient(145deg, var(--surface) 0%, rgba(92,184,92,0.08) 100%);">
+        <div class="stat-icon icon-green">
+            <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_records }}</h3>
+            <p><strong style="color:var(--green);">Total Records</strong> (Menu Catalog)</p>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon icon-gold">
+            <i class="fa-solid fa-peso-sign"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>₱{{ stats.total_revenue|number_format(2) }}</h3>
+            <p>Total Sales Revenue</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon icon-green">
+            <i class="fa-solid fa-bag-shopping"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_orders }}</h3>
+            <p>Orders Placed</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon icon-blue">
+            <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.total_reservations }}</h3>
+            <p>Table Bookings</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon icon-red">
+            <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <div class="stat-meta">
+            <h3>{{ stats.low_stock_items }}</h3>
+            <p>Low Stock Alerts</p>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 30px;">
+    <a href="{{ path('admin_inventory') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-gold"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div class="stat-meta">
+            <h3>Inventory</h3>
+            <p>Adjust dish stocks (+/- buttons)</p>
+        </div>
+    </a>
+    <a href="{{ path('admin_orders') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-green"><i class="fa-solid fa-receipt"></i></div>
+        <div class="stat-meta">
+            <h3>Orders</h3>
+            <p>Manage order pipeline & status</p>
+        </div>
+    </a>
+    <a href="{{ path('admin_reservations') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-blue"><i class="fa-solid fa-chair"></i></div>
+        <div class="stat-meta">
+            <h3>Reservations</h3>
+            <p>Guest seating & bookings</p>
+        </div>
+    </a>
+    <a href="{{ path('admin_messages') }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-icon icon-gold"><i class="fa-solid fa-envelope-open-text"></i></div>
+        <div class="stat-meta">
+            <h3>Inquiries</h3>
+            <p>Customer contact desk</p>
+        </div>
+    </a>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <h2><i class="fa-solid fa-clock-rotate-left" style="color:var(--gold); margin-right:8px;"></i> Recent Orders</h2>
+        <a href="{{ path('admin_orders') }}" class="btn-secondary btn-sm">See All Orders</a>
+    </div>
+    {% if stats.recent_orders is empty %}
+        <p style="padding: 30px; text-align: center; color: var(--muted);">No orders recorded yet.</p>
+    {% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Order #</th>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in stats.recent_orders %}
+            <tr>
+                <td><strong style="color:var(--gold);">{{ o.order_number }}</strong></td>
+                <td>{{ o.customer_name }}</td>
+                <td><small style="color:var(--muted);">{{ o.customer_phone|default('—') }}</small></td>
+                <td>
+                    {% if o.order_type == 'dinein' %}
+                        <span class="badge" style="background:rgba(91,155,213,0.15);color:var(--blue);"><i class="fa-solid fa-utensils"></i> Dine In</span>
+                    {% elseif o.order_type == 'takeout' %}
+                        <span class="badge" style="background:rgba(201,168,76,0.15);color:var(--gold);"><i class="fa-solid fa-bag-shopping"></i> Take Out</span>
+                    {% else %}
+                        <span class="badge" style="background:rgba(92,184,92,0.15);color:var(--green);"><i class="fa-solid fa-motorcycle"></i> Delivery</span>
+                    {% endif %}
+                </td>
+                <td><strong>₱{{ o.total_amount|number_format(2) }}</strong></td>
+                <td>
+                    <span class="badge badge-{{ o.status }}">{{ o.status|capitalize }}</span>
+                </td>
+                <td><small style="color:var(--muted);">{{ o.created_at|date('M d, Y h:i A') }}</small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+{% endblock %}

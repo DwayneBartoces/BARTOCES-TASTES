@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ title }} - Bartoces Tastes (Symfony 50% Milestone){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid {{ icon }}"></i> {{ title }}</h1>
+        <p>{{ description }}</p>
+    </div>
+    <div>
+        <span class="milestone-badge" style="background: rgba(91, 155, 213, 0.15); border-color: rgba(91, 155, 213, 0.3); color: var(--blue);">
+            <i class="fa-solid fa-hourglass-half"></i> {{ status }}
+        </span>
+    </div>
+</div>
+
+<div class="card-panel" style="text-align: center; padding: 60px 30px;">
+    <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--surface2); border: 2px dashed var(--gold); display: inline-flex; align-items: center; justify-content: center; font-size: 28px; color: var(--gold); margin-bottom: 20px;">
+        <i class="fa-solid {{ icon }}"></i>
+    </div>
+
+    <h2 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--gold); margin-bottom: 12px;">
+        50% Milestone Status: Phase 2 Feature
+    </h2>
+
+    <p style="color: var(--muted); max-width: 580px; margin: 0 auto 24px; font-size: 14px; line-height: 1.6;">
+        This module is part of the remaining 50% roadmap for the Symfony Admin migration. The core Symfony architecture, Dashboard metrics, and Dish Stock controls (+ / - buttons) are active and complete.
+    </p>
+
+    <div style="display: inline-flex; gap: 12px;">
+        <a href="{{ path('admin_dashboard') }}" class="btn-switch-admin" style="display:inline-flex; padding: 10px 18px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; text-decoration: none;">
+            <i class="fa-solid fa-gauge-high"></i> Back to Dashboard
+        </a>
+        <a href="{{ path('admin_inventory') }}" class="btn-switch-admin" style="display:inline-flex; padding: 10px 18px; background: var(--gold); border: 1px solid var(--gold); color: #0f0e0d; font-weight: 700; border-radius: 8px; text-decoration: none;">
+            <i class="fa-solid fa-boxes-stacked"></i> Try Stock +/- Buttons
+        </a>
+    </div>
+</div>
+{% endblock %}

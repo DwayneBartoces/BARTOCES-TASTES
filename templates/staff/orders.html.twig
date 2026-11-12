@@ -1,0 +1,119 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Kitchen Orders - Staff Portal (Symfony 6.4){% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-bag-shopping"></i> Kitchen Orders &amp; Fulfillment</h1>
+        <p>Live kitchen display. Update order progress in real-time as dishes are prepared and served.</p>
+    </div>
+    <div style="display:flex; gap:10px;">
+        <a href="{{ path('staff_orders') }}?status=pending" class="btn-secondary btn-sm {% if currentStatus == 'pending' %}active{% endif %}">Pending</a>
+        <a href="{{ path('staff_orders') }}?status=preparing" class="btn-secondary btn-sm {% if currentStatus == 'preparing' %}active{% endif %}">Preparing</a>
+        <a href="{{ path('staff_orders') }}?status=ready" class="btn-secondary btn-sm {% if currentStatus == 'ready' %}active{% endif %}">Ready</a>
+        <a href="{{ path('staff_orders') }}?status=all" class="btn-primary btn-sm {% if currentStatus == 'all' %}active{% endif %}">All Orders</a>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <h2><i class="fa-solid fa-fire-burner" style="color:var(--gold); margin-right:8px;"></i> Live Order Queue ({{ orders|length }})</h2>
+    </div>
+
+    {% if orders is empty %}
+    <div style="text-align:center; padding:48px 24px; color:var(--muted);">
+        <i class="fa-solid fa-clipboard-check" style="font-size:36px; margin-bottom:12px; color:var(--surface3);"></i>
+        <p>No orders found matching the selected filter.</p>
+    </div>
+    {% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Order Ref</th>
+                <th>Customer</th>
+                <th>Type</th>
+                <th>Items Ordered</th>
+                <th>Payment</th>
+                <th>Total</th>
+                <th>Kitchen Status</th>
+                <th style="text-align:right;">Update Progress</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td>
+                    <strong style="color:var(--gold);">{{ o.order_number }}</strong>
+                    <div style="font-size:11px; color:var(--muted); margin-top:2px;">{{ o.created_at|date('M d, Y h:i A') }}</div>
+                </td>
+                <td>
+                    <strong>{{ o.customer_name }}</strong>
+                    <div style="font-size:11.5px; color:var(--muted);">{{ o.customer_phone|default('No phone provided') }}</div>
+                    {% if o.delivery_address %}
+                        <div style="font-size:11px; color:var(--gold-light); margin-top:2px;"><i class="fa-solid fa-location-dot"></i> {{ o.delivery_address }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if o.order_type == 'dinein' %}
+                        <span class="badge" style="background:rgba(91,155,213,0.15);color:var(--blue);"><i class="fa-solid fa-utensils"></i> Dine In (Table {{ o.table_number|default('—') }})</span>
+                    {% elseif o.order_type == 'takeout' %}
+                        <span class="badge" style="background:rgba(201,168,76,0.15);color:var(--gold);"><i class="fa-solid fa-bag-shopping"></i> Take Out</span>
+                    {% else %}
+                        <span class="badge" style="background:rgba(92,184,92,0.15);color:var(--green);"><i class="fa-solid fa-motorcycle"></i> Delivery</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="max-width:240px; font-size:12.5px;">
+                        {% for item in o.items %}
+                            <div>
+                                <span style="font-weight:600; color:var(--text);">{{ item.quantity }}x</span> {{ item.item_name }}
+                                {% if item.addons %}
+                                    <small style="color:var(--gold); font-size:10.5px;">({{ item.addons }})</small>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span style="color:var(--muted);">No items recorded</span>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <span style="font-size:12.5px;">{{ o.payment_method }}</span>
+                </td>
+                <td>
+                    <strong style="color:var(--gold); font-size:15px;">₱{{ o.total_amount|number_format(2) }}</strong>
+                </td>
+                <td>
+                    {% if o.status == 'pending' %}
+                        <span class="badge" style="background:rgba(240,173,78,0.15); color:#f0ad4e; border:1px solid rgba(240,173,78,0.3);">Pending</span>
+                    {% elseif o.status == 'preparing' %}
+                        <span class="badge" style="background:rgba(91,155,213,0.15); color:var(--blue); border:1px solid rgba(91,155,213,0.3);"><i class="fa-solid fa-fire"></i> Preparing</span>
+                    {% elseif o.status == 'ready' %}
+                        <span class="badge" style="background:rgba(92,184,92,0.15); color:var(--green); border:1px solid rgba(92,184,92,0.3);"><i class="fa-solid fa-bell"></i> Ready</span>
+                    {% elseif o.status == 'completed' %}
+                        <span class="badge badge-completed"><i class="fa-solid fa-check"></i> Completed</span>
+                    {% else %}
+                        <span class="badge badge-cancelled">{{ o.status|capitalize }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ path('staff_order_status', {id: o.id}) }}" style="display:inline-block; text-align:right;">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                        <select name="status" class="admin-select" style="font-size:11.5px; padding:4px 8px;" onchange="this.form.submit()">
+                            <option value="pending" {% if o.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="confirmed" {% if o.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                            <option value="preparing" {% if o.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                            <option value="ready" {% if o.status == 'ready' %}selected{% endif %}>Ready</option>
+                            <option value="completed" {% if o.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="cancelled" {% if o.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}
+
